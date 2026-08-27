@@ -32,8 +32,8 @@ export const api = {
   wishlists: (token: string) => request<Wishlist[]>('/v1/wishlists', { headers: auth(token) }),
   createWishlist: (token: string, title: string) => request<Wishlist>('/v1/wishlists', { method: 'POST', headers: auth(token), body: JSON.stringify({ title }) }),
   items: (token: string, id: string) => request<WishlistItem[]>(`/v1/wishlists/${id}/items`, { headers: auth(token) }),
-  createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
-  async updateItem(token: string, wishlistId: string, itemId: string, item: { title: string; url?: string; price?: number; ownerNote?: string }) {
+  createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
+  async updateItem(token: string, wishlistId: string, itemId: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number }) {
     const path = `/v1/wishlists/${wishlistId}/items/${itemId}`
     const options = { headers: auth(token), body: JSON.stringify(item) }
     try {
@@ -51,7 +51,7 @@ export const api = {
   saveAccountShare: (token: string, shareToken: string, viewerToken?: string) => request<AccountSharedWishlist>(`/v1/shared-wishlists/open/${shareToken}`, { method: 'POST', headers: { ...auth(token), ...(viewerToken ? viewer(viewerToken) : {}) } }),
   removeAccountShare: (token: string, id: string) => request<void>(`/v1/shared-wishlists/${id}`, { method: 'DELETE', headers: auth(token) }),
   accountSharedItems: (token: string, id: string) => request<SharedItemRow[]>(`/v1/shared-wishlists/${id}/items`, { headers: auth(token) }),
-  updateAccountSharedItem: (token: string, shareId: string, itemId: string, body: { purchased?: boolean; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shared-wishlists/${shareId}/items/${itemId}/state`, { method: 'PUT', headers: auth(token), body: JSON.stringify(body) }),
+  updateAccountSharedItem: (token: string, shareId: string, itemId: string, body: { purchased?: boolean; purchasedQuantity?: number; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shared-wishlists/${shareId}/items/${itemId}/state`, { method: 'PUT', headers: auth(token), body: JSON.stringify(body) }),
   sharedItems: (shareToken: string, viewerToken: string) => request<SharedItemRow[]>(`/v1/shares/${shareToken}/items`, { headers: viewer(viewerToken) }),
-  updateSharedItem: (shareToken: string, itemId: string, viewerToken: string, body: { purchased?: boolean; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shares/${shareToken}/items/${itemId}/state`, { method: 'PUT', headers: viewer(viewerToken), body: JSON.stringify(body) }),
+  updateSharedItem: (shareToken: string, itemId: string, viewerToken: string, body: { purchased?: boolean; purchasedQuantity?: number; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shares/${shareToken}/items/${itemId}/state`, { method: 'PUT', headers: viewer(viewerToken), body: JSON.stringify(body) }),
 }

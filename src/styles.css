@@ -127,6 +127,8 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .shared-item { grid-template-columns:55px 1fr; }.shared-item.purchased:not(:has(.mine)){opacity:.65}.shared-item.purchased .item-icon{background:#e3dce7;color:#74647e}
 .item-actions { display:flex; gap:16px; align-items:center; margin-top:14px; }
 .claim-button { border:1px solid #b7aabe; color:var(--sage-dark); background:white; padding:8px 14px; border-radius:999px; font-size:.78rem; font-weight:600; cursor:pointer; display:flex; gap:6px; align-items:center; }.claim-button.mine{background:var(--sage);color:white;border-color:var(--sage)}.claim-button svg{width:14px}
+.quantity-choice { display:flex; align-items:center; gap:9px; color:var(--sage-dark); font-size:.8rem; font-weight:600; }
+.quantity-choice select { min-width:62px; padding:8px 10px; border:1px solid #b7aabe; border-radius:10px; background:white; color:var(--ink); }
 .notes { margin-top:15px; padding:12px 14px; border-radius:10px; background:#f3f0e9; }.notes>span{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:#898b82}.notes p{margin:7px 0 0;color:#62655d}
 
 .modal-backdrop { position:fixed; inset:0; background:rgba(33,35,30,.38); backdrop-filter:blur(5px); z-index:50; display:grid; place-items:center; padding:20px; animation:fade .16s ease; }
