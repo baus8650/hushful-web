@@ -7,7 +7,7 @@ export interface WishlistItem {
 }
 export interface SharedWishlist { shareToken: string; title: string; sharedByName?: string; accountShareID?: string; wishlistID?: string }
 export interface AccountSharedWishlist { id: string; wishlistID: string; title: string; sharedByName: string }
-export interface SharedNote { authorDisplayName?: string; updatedAt?: string; note: string }
+export interface SharedNote { authorDisplayName?: string; updatedAt?: string; note: string; isMine?: boolean }
 export interface SharedItemRow {
   purchasedByMe: boolean; purchased: boolean; purchasedQuantity?: number; purchasedQuantityByMe?: number; notes: SharedNote[];
   item: WishlistItem
