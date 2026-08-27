@@ -1,4 +1,4 @@
-import type { CurrentUser, ShareViewResponse, SharedItemRow, TokenResponse, Wishlist, WishlistItem } from './types'
+import type { AccountSharedWishlist, CurrentUser, ShareViewResponse, SharedItemRow, TokenResponse, Wishlist, WishlistItem } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -47,6 +47,11 @@ export const api = {
   deleteItem: (token: string, wishlistId: string, itemId: string) => request<void>(`/v1/wishlists/${wishlistId}/items/${itemId}`, { method: 'DELETE', headers: auth(token) }),
   createShare: (token: string, id: string) => request<{ shareToken: string }>(`/v1/wishlists/${id}/shares`, { method: 'POST', headers: auth(token) }),
   openShare: (shareToken: string, viewerToken?: string) => request<ShareViewResponse>(`/v1/shares/${shareToken}`, { headers: viewerToken ? viewer(viewerToken) : {} }),
+  accountShares: (token: string) => request<AccountSharedWishlist[]>('/v1/shared-wishlists', { headers: auth(token) }),
+  saveAccountShare: (token: string, shareToken: string, viewerToken?: string) => request<AccountSharedWishlist>(`/v1/shared-wishlists/open/${shareToken}`, { method: 'POST', headers: { ...auth(token), ...(viewerToken ? viewer(viewerToken) : {}) } }),
+  removeAccountShare: (token: string, id: string) => request<void>(`/v1/shared-wishlists/${id}`, { method: 'DELETE', headers: auth(token) }),
+  accountSharedItems: (token: string, id: string) => request<SharedItemRow[]>(`/v1/shared-wishlists/${id}/items`, { headers: auth(token) }),
+  updateAccountSharedItem: (token: string, shareId: string, itemId: string, body: { purchased?: boolean; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shared-wishlists/${shareId}/items/${itemId}/state`, { method: 'PUT', headers: auth(token), body: JSON.stringify(body) }),
   sharedItems: (shareToken: string, viewerToken: string) => request<SharedItemRow[]>(`/v1/shares/${shareToken}/items`, { headers: viewer(viewerToken) }),
   updateSharedItem: (shareToken: string, itemId: string, viewerToken: string, body: { purchased?: boolean; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shares/${shareToken}/items/${itemId}/state`, { method: 'PUT', headers: viewer(viewerToken), body: JSON.stringify(body) }),
 }
