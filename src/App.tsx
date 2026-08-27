@@ -84,12 +84,14 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
     async function syncAccountShares() {
       try {
         const local = shareStorage.list(user.id)
+        let server = await api.accountShares(token)
         for (const share of local) {
-          if (!share.accountShareID && share.shareToken) {
-            await api.saveAccountShare(token, share.shareToken, shareStorage.viewerToken(user.id, share.shareToken) || undefined)
-          }
+          if (!share.shareToken) continue
+          const existsOnServer = server.some((saved) => saved.id === share.accountShareID || saved.wishlistID === share.wishlistID)
+          if (existsOnServer) continue
+          const saved = await api.saveAccountShare(token, share.shareToken, shareStorage.viewerToken(user.id, share.shareToken) || undefined)
+          server = [...server, saved]
         }
-        const server = await api.accountShares(token)
         setShared(server.map((share) => {
           const cached = local.find((item) => item.accountShareID === share.id || item.wishlistID === share.wishlistID)
           return { shareToken: cached?.shareToken || '', title: share.title, sharedByName: share.sharedByName, accountShareID: share.id, wishlistID: share.wishlistID }
