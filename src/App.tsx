@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Check, ChevronRight, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, PackageCheck, Pencil, Plus, RefreshCw, Send, Settings, Share2, Sparkles, Trash2, User, X } from 'lucide-react'
 import { api, ApiError } from './api'
 import { authStorage, shareStorage } from './storage'
@@ -72,11 +72,45 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
         {message && <p className="auth-message" role="status">{message}</p>}
         <button className="primary wide" disabled={busy}>{busy && <LoaderCircle className="spin" />} {mode === 'forgot' ? 'Send reset link' : register ? 'Create account' : 'Sign in'} <ChevronRight /></button>
       </form>
+      {mode !== 'forgot' && <>
+        <div className="auth-divider"><span>or</span></div>
+        <GoogleSignInButton onAuthenticated={onAuthenticated} onError={onError} />
+      </>}
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode('forgot') }}>Forgot password?</button>}
       <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
     </section>
     <p className="auth-foot">Private by design · Share only with the people you choose</p>
   </main>
+}
+
+function GoogleSignInButton({ onAuthenticated, onError }: { onAuthenticated: (token: string) => void; onError: (e: unknown) => void }) {
+  const container = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+    if (!clientId) return
+    let attempts = 0
+    const timer = window.setInterval(() => {
+      attempts += 1
+      if (!window.google || !container.current) {
+        if (attempts >= 100) window.clearInterval(timer)
+        return
+      }
+      window.clearInterval(timer)
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async ({ credential }) => {
+          try { onAuthenticated((await api.googleLogin(credential)).accessToken) }
+          catch (error) { onError(error) }
+        },
+      })
+      container.current.replaceChildren()
+      window.google.accounts.id.renderButton(container.current, {
+        type: 'standard', theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: 360,
+      })
+    }, 50)
+    return () => window.clearInterval(timer)
+  }, [onAuthenticated, onError])
+  return <div className="google-sign-in" ref={container} />
 }
 
 function ResetPasswordScreen({ token }: { token: string }) {
