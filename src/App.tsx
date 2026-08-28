@@ -7,6 +7,7 @@ import type { CurrentUser, SharedItemRow, SharedWishlist, Wishlist, WishlistItem
 type View = { kind: 'home' } | { kind: 'wishlist'; wishlist: Wishlist } | { kind: 'shared'; share: SharedWishlist }
 
 export default function App() {
+  const resetToken = new URLSearchParams(window.location.search).get('resetToken')
   const [token, setToken] = useState<string | null>(authStorage.get())
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [loading, setLoading] = useState(Boolean(token))
@@ -29,6 +30,7 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
+  if (resetToken) return <ResetPasswordScreen token={resetToken} />
   if (loading) return <FullPageLoader />
   if (!token || !user) return <AuthScreen onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} />
   return <>
@@ -38,14 +40,21 @@ export default function App() {
 }
 
 function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: string) => void; onError: (e: unknown) => void }) {
-  const [register, setRegister] = useState(false)
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const register = mode === 'register'
   async function submit(e: FormEvent) {
     e.preventDefault(); setBusy(true)
     try {
+      if (mode === 'forgot') {
+        const response = await api.forgotPassword(email)
+        setMessage(response.message)
+        return
+      }
       const response = register ? await api.register(email, password, name.trim()) : await api.login(email, password)
       onAuthenticated(response.accessToken)
     } catch (error) { onError(error) } finally { setBusy(false) }
@@ -53,16 +62,54 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
   return <main className="auth-page">
     <div className="auth-brand"><Logo /><p>All the wishes.<br />None of the spoilers.</p></div>
     <section className="auth-card">
-      <div className="eyebrow">{register ? 'A fresh start' : 'Welcome back'}</div>
-      <h1>{register ? 'Create your account' : 'Sign in to Hushful'}</h1>
-      <p className="muted">{register ? 'Keep every thoughtful idea in one calm place.' : 'Your wishlists are waiting for you.'}</p>
+      <div className="eyebrow">{mode === 'forgot' ? 'Account recovery' : register ? 'A fresh start' : 'Welcome back'}</div>
+      <h1>{mode === 'forgot' ? 'Reset your password' : register ? 'Create your account' : 'Sign in to Hushful'}</h1>
+      <p className="muted">{mode === 'forgot' ? 'Enter your email and we’ll send you a secure reset link.' : register ? 'Keep every thoughtful idea in one calm place.' : 'Your wishlists are waiting for you.'}</p>
       <form onSubmit={submit} className="stack-form">
         {register && <Field label="Your name"><input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="How friends know you" required /></Field>}
         <Field label="Email"><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required /></Field>
-        <Field label="Password"><input type="password" autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required /></Field>
-        <button className="primary wide" disabled={busy}>{busy && <LoaderCircle className="spin" />} {register ? 'Create account' : 'Sign in'} <ChevronRight /></button>
+        {mode !== 'forgot' && <Field label="Password"><input type="password" autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required /></Field>}
+        {message && <p className="auth-message" role="status">{message}</p>}
+        <button className="primary wide" disabled={busy}>{busy && <LoaderCircle className="spin" />} {mode === 'forgot' ? 'Send reset link' : register ? 'Create account' : 'Sign in'} <ChevronRight /></button>
       </form>
-      <button className="text-button auth-switch" onClick={() => setRegister(!register)}>{register ? 'Already have an account? Sign in' : 'New to Hushful? Create an account'}</button>
+      {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode('forgot') }}>Forgot password?</button>}
+      <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
+    </section>
+    <p className="auth-foot">Private by design · Share only with the people you choose</p>
+  </main>
+}
+
+function ResetPasswordScreen({ token }: { token: string }) {
+  const [password, setPassword] = useState('')
+  const [confirmation, setConfirmation] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [complete, setComplete] = useState(false)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (password.length < 8) return setError('Password must be at least 8 characters.')
+    if (password !== confirmation) return setError('The passwords do not match.')
+    setBusy(true); setError('')
+    try { await api.resetPassword(token, password); setComplete(true) }
+    catch (e) { setError(e instanceof Error ? e.message : 'Unable to reset your password.') }
+    finally { setBusy(false) }
+  }
+
+  return <main className="auth-page">
+    <div className="auth-brand"><Logo /><p>All the wishes.<br />None of the spoilers.</p></div>
+    <section className="auth-card">
+      <div className="eyebrow">Account recovery</div>
+      <h1>{complete ? 'Password updated' : 'Choose a new password'}</h1>
+      {complete ? <>
+        <p className="muted">Your new password is ready. You can now return to Hushful and sign in.</p>
+        <button className="primary wide" onClick={() => { authStorage.clear(); window.location.assign('/') }}>Return to sign in <ChevronRight /></button>
+      </> : <form onSubmit={submit} className="stack-form">
+        <Field label="New password"><input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></Field>
+        <Field label="Confirm password"><input type="password" autoComplete="new-password" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} required /></Field>
+        {error && <p className="auth-error" role="alert">{error}</p>}
+        <button className="primary wide" disabled={busy}>{busy && <LoaderCircle className="spin" />} Update password <ChevronRight /></button>
+      </form>}
     </section>
     <p className="auth-foot">Private by design · Share only with the people you choose</p>
   </main>
