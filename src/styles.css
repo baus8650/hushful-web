@@ -70,6 +70,8 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .nav-dot { width:8px; height:8px; flex:none; border-radius:50%; background:#c79f8c; }
 .shared-dot { background:#93829d; }
 .profile-chip { border:0; border-top:1px solid var(--line); background:none; display:grid; grid-template-columns:40px 1fr 20px; gap:10px; align-items:center; padding:20px 5px 0; cursor:pointer; text-align:left; }
+.tutorial-button { border:0; background:none; color:var(--sage-dark); display:flex; align-items:center; gap:9px; padding:11px 6px; margin-bottom:8px; cursor:pointer; font-size:.8rem; font-weight:600; }
+.tutorial-button svg { width:17px; }
 .profile-chip span:not(.avatar) { min-width:0; }
 .profile-chip strong,.profile-chip small { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .profile-chip strong { font-size:.85rem; }.profile-chip small { color:var(--muted); font-size:.68rem; margin-top:3px; }
@@ -142,6 +144,15 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .modal-wide { width:min(100%,600px); }
 .modal-header { display:flex; align-items:start; justify-content:space-between; gap:18px; margin-bottom:25px; }
 .modal-header h2 { margin:0; }.modal-header .eyebrow{margin-bottom:5px!important}
+.tutorial { text-align:center; }
+.tutorial>.logo { justify-content:center; margin-bottom:28px; }
+.tutorial-art { width:112px; height:112px; margin:0 auto 25px; display:grid; place-items:center; border-radius:50%; color:var(--sage); background:#e5dfe8; }
+.tutorial-art svg { width:48px; height:48px; stroke-width:1.35; }
+.tutorial h2 { margin-bottom:10px; }
+.tutorial>p:not(.eyebrow) { color:var(--muted); line-height:1.6; max-width:390px; margin:0 auto; }
+.tutorial-dots { display:flex; justify-content:center; gap:7px; margin:26px 0 20px; }
+.tutorial-dots span { width:7px; height:7px; border-radius:50%; background:var(--line); }
+.tutorial-dots span.active { width:22px; border-radius:99px; background:var(--sage); }
 .modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:9px; }.modal-actions.spread{justify-content:space-between}
 .modal-copy { line-height:1.5; }
 .copy-field { display:flex; border:1px solid var(--line); background:#f5f3ed; border-radius:12px; padding:6px 6px 6px 13px; align-items:center; gap:8px; margin:20px 0; }
