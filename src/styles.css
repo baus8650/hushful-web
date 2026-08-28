@@ -146,8 +146,22 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .modal-header h2 { margin:0; }.modal-header .eyebrow{margin-bottom:5px!important}
 .tutorial { text-align:center; }
 .tutorial>.logo { justify-content:center; margin-bottom:28px; }
-.tutorial-art { width:112px; height:112px; margin:0 auto 25px; display:grid; place-items:center; border-radius:50%; color:var(--sage); background:#e5dfe8; }
-.tutorial-art svg { width:48px; height:48px; stroke-width:1.35; }
+.tutorial-preview { margin:0 auto 24px; border:2px solid var(--line); border-radius:18px; overflow:hidden; text-align:left; box-shadow:0 10px 28px rgba(58,45,65,.08); }
+.tutorial-preview-nav { min-height:72px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; background:var(--paper); }
+.tutorial-preview-nav>div { display:flex; gap:9px; }
+.tutorial-callout { display:grid; justify-items:center; gap:3px; color:var(--sage-dark); }
+.tutorial-callout i { width:34px; height:34px; display:grid; place-items:center; border-radius:50%; background:#e5dfe8; font-style:normal; }
+.tutorial-callout svg { width:16px; }
+.tutorial-callout small { font-size:.56rem; font-weight:700; }
+.tutorial-preview-body { min-height:150px; padding:14px; display:grid; align-content:start; gap:10px; background:var(--cream); }
+.tutorial-mini-row { padding:10px; border-radius:11px; background:var(--paper); display:grid; grid-template-columns:36px 1fr 18px; gap:10px; align-items:center; }
+.tutorial-mini-row>i { width:36px; height:36px; display:grid; place-items:center; border-radius:9px; color:var(--sage-dark); background:#e5dfe8; }
+.tutorial-mini-row>i svg { width:17px; }
+.tutorial-mini-row span strong,.tutorial-mini-row span small { display:block; }
+.tutorial-mini-row span small,.tutorial-preview-body>small { color:var(--muted); font-size:.68rem; }
+.tutorial-mini-row>svg { width:14px; color:var(--muted); }
+.tutorial-detail-actions { display:flex; gap:9px; }
+.tutorial-detail-actions button { border:1px solid #b7aabe; border-radius:999px; padding:7px 11px; color:var(--sage-dark); background:var(--paper); font-size:.7rem; font-weight:700; }
 .tutorial h2 { margin-bottom:10px; }
 .tutorial>p:not(.eyebrow) { color:var(--muted); line-height:1.6; max-width:390px; margin:0 auto; }
 .tutorial-dots { display:flex; justify-content:center; gap:7px; margin:26px 0 20px; }
