@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, CurrentUser, ShareViewResponse, SharedItemRow, TokenResponse, Wishlist, WishlistItem } from './types'
+import type { AccountSharedWishlist, CurrentUser, FriendGroup, Friendship, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistItem } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -31,7 +31,19 @@ export const api = {
   forgotPassword: (email: string) => request<{ message: string }>('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: (token: string, password: string) => request<{ message: string }>('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   me: (token: string) => request<CurrentUser>('/v1/me', { headers: auth(token) }),
-  updateProfile: (token: string, displayName: string) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify({ displayName }) }),
+  updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
+  searchUsers: (token: string, q: string) => request<SocialUser[]>(`/v1/users/search?q=${encodeURIComponent(q)}`, { headers: auth(token) }),
+  friends: (token: string) => request<Friendship[]>('/v1/friends', { headers: auth(token) }),
+  friendRequests: (token: string) => request<Friendship[]>('/v1/friend-requests', { headers: auth(token) }),
+  requestFriend: (token: string, userId: string) => request<Friendship>(`/v1/friend-requests/${userId}`, { method: 'POST', headers: auth(token) }),
+  acceptFriend: (token: string, friendshipId: string) => request<Friendship>(`/v1/friend-requests/${friendshipId}/accept`, { method: 'POST', headers: auth(token) }),
+  removeFriendship: (token: string, friendshipId: string) => request<void>(`/v1/friendships/${friendshipId}`, { method: 'DELETE', headers: auth(token) }),
+  friendGroups: (token: string) => request<FriendGroup[]>('/v1/friend-groups', { headers: auth(token) }),
+  createFriendGroup: (token: string, name: string) => request<FriendGroup>('/v1/friend-groups', { method: 'POST', headers: auth(token), body: JSON.stringify({ name }) }),
+  addGroupMember: (token: string, groupId: string, userId: string) => request<FriendGroup>(`/v1/friend-groups/${groupId}/members/${userId}`, { method: 'PUT', headers: auth(token) }),
+  removeGroupMember: (token: string, groupId: string, userId: string) => request<FriendGroup>(`/v1/friend-groups/${groupId}/members/${userId}`, { method: 'DELETE', headers: auth(token) }),
+  wishlistAudience: (token: string, wishlistId: string) => request<WishlistAudience>(`/v1/wishlists/${wishlistId}/audience`, { headers: auth(token) }),
+  updateWishlistAudience: (token: string, wishlistId: string, audience: WishlistAudience) => request<WishlistAudience>(`/v1/wishlists/${wishlistId}/audience`, { method: 'PUT', headers: auth(token), body: JSON.stringify(audience) }),
   wishlists: (token: string) => request<Wishlist[]>('/v1/wishlists', { headers: auth(token) }),
   createWishlist: (token: string, title: string) => request<Wishlist>('/v1/wishlists', { method: 'POST', headers: auth(token), body: JSON.stringify({ title }) }),
   items: (token: string, id: string) => request<WishlistItem[]>(`/v1/wishlists/${id}/items`, { headers: auth(token) }),

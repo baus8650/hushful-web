@@ -1,5 +1,9 @@
 export interface TokenResponse { accessToken: string; tokenType: string; expiresIn: number }
-export interface CurrentUser { id: string; email: string; displayName?: string }
+export interface CurrentUser { id: string; email: string; displayName?: string; username?: string; isDiscoverable: boolean; friendRequestPolicy: 'everyone' | 'nobody' }
+export interface SocialUser { id: string; username: string; displayName?: string }
+export interface Friendship { id: string; user: SocialUser; direction: 'incoming' | 'outgoing'; status: 'pending' | 'accepted' }
+export interface FriendGroup { id: string; name: string; members: SocialUser[] }
+export interface WishlistAudience { userIDs: string[]; groupIDs: string[] }
 export interface Wishlist { id: string; title: string }
 export interface WishlistItem {
   id: string; title: string; url?: string; price?: number; ownerNote?: string; quantity?: number;
