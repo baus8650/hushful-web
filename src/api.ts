@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, Friendship, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistItem } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -46,6 +46,8 @@ export const api = {
   readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
   searchUsers: (token: string, q: string) => request<SocialUser[]>(`/v1/users/search?q=${encodeURIComponent(q)}`, { headers: auth(token) }),
   friends: (token: string) => request<Friendship[]>('/v1/friends', { headers: auth(token) }),
+  friendProfile: (token: string, userId: string) => request<FriendProfile>(`/v1/users/${userId}/profile`, { headers: auth(token) }),
+  openPublicWishlist: (token: string, wishlistId: string) => request<AccountSharedWishlist>(`/v1/public-wishlists/${wishlistId}/open`, { method: 'POST', headers: auth(token) }),
   friendRequests: (token: string) => request<Friendship[]>('/v1/friend-requests', { headers: auth(token) }),
   requestFriend: (token: string, userId: string) => request<Friendship>(`/v1/friend-requests/${userId}`, { method: 'POST', headers: auth(token) }),
   acceptFriend: (token: string, friendshipId: string) => request<Friendship>(`/v1/friend-requests/${friendshipId}/accept`, { method: 'POST', headers: auth(token) }),
@@ -57,6 +59,8 @@ export const api = {
   wishlistAudience: (token: string, wishlistId: string) => request<WishlistAudience>(`/v1/wishlists/${wishlistId}/audience`, { headers: auth(token) }),
   updateWishlistAudience: (token: string, wishlistId: string, audience: WishlistAudience) => request<WishlistAudience>(`/v1/wishlists/${wishlistId}/audience`, { method: 'PUT', headers: auth(token), body: JSON.stringify(audience) }),
   wishlists: (token: string) => request<Wishlist[]>('/v1/wishlists', { headers: auth(token) }),
+  wishlistSettings: (token: string, wishlistId: string) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { headers: auth(token) }),
+  updateWishlistSettings: (token: string, wishlistId: string, settings: Partial<WishlistSettings>) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { method: 'PATCH', headers: auth(token), body: JSON.stringify(settings) }),
   createWishlist: (token: string, title: string) => request<Wishlist>('/v1/wishlists', { method: 'POST', headers: auth(token), body: JSON.stringify({ title }) }),
   items: (token: string, id: string) => request<WishlistItem[]>(`/v1/wishlists/${id}/items`, { headers: auth(token) }),
   createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
