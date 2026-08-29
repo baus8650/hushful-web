@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, CurrentUser, FriendGroup, Friendship, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistItem } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, Friendship, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistItem } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -24,6 +24,12 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` })
 const viewer = (token: string) => ({ 'X-Viewer-Token': token })
 
+async function avatarRequest(token: string, method: 'PUT' | 'DELETE', file?: File): Promise<CurrentUser> {
+  const response = await fetch(`${API_URL}/v1/me/avatar`, { method, headers: { ...auth(token), ...(file ? { 'Content-Type': file.type } : {}) }, body: file })
+  if (!response.ok) { const body = await response.text(); let message = body || `Request failed (${response.status})`; try { message = JSON.parse(body).reason ?? message } catch { /* plain response */ }; throw new ApiError(response.status, message) }
+  return response.json() as Promise<CurrentUser>
+}
+
 export const api = {
   register: (email: string, password: string, displayName: string) => request<TokenResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
   login: (email: string, password: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
@@ -32,6 +38,12 @@ export const api = {
   resetPassword: (token: string, password: string) => request<{ message: string }>('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   me: (token: string) => request<CurrentUser>('/v1/me', { headers: auth(token) }),
   updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
+  avatarURL: (userId: string) => `${API_URL}/v1/users/${userId}/avatar`,
+  uploadAvatar: (token: string, file: File) => avatarRequest(token, 'PUT', file),
+  removeAvatar: (token: string) => avatarRequest(token, 'DELETE'),
+  activity: (token: string) => request<ActivityItem[]>('/v1/activity', { headers: auth(token) }),
+  readActivity: (token: string, id: string) => request<ActivityItem>(`/v1/activity/${id}/read`, { method: 'POST', headers: auth(token) }),
+  readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
   searchUsers: (token: string, q: string) => request<SocialUser[]>(`/v1/users/search?q=${encodeURIComponent(q)}`, { headers: auth(token) }),
   friends: (token: string) => request<Friendship[]>('/v1/friends', { headers: auth(token) }),
   friendRequests: (token: string) => request<Friendship[]>('/v1/friend-requests', { headers: auth(token) }),
