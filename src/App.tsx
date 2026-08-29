@@ -158,6 +158,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   const [shareOpen, setShareOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [friendsOpen, setFriendsOpen] = useState(false)
+  const [peopleSearchOpen, setPeopleSearchOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [mobileNav, setMobileNav] = useState(false)
@@ -219,6 +220,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
       <nav>
         <button className={`nav-home ${view.kind === 'home' ? 'active' : ''}`} onClick={() => select({ kind: 'home' })}><Sparkles /> Overview</button>
         <button className="nav-home" onClick={() => { setFriendsOpen(true); setMobileNav(false) }}><Users /> Friends</button>
+        <button className="nav-home" onClick={() => { setPeopleSearchOpen(true); setMobileNav(false) }}><User /> Find people</button>
         <button className="nav-home" onClick={() => { setActivityOpen(true); setMobileNav(false) }}><Bell /> Activity {activity.some((item) => !item.readAt) && <span className="notification-badge">{activity.filter((item) => !item.readAt).length}</span>}</button>
         <NavGroup title="My wishlists" action={<button aria-label="New wishlist" onClick={() => setCreateOpen(true)}><Plus /></button>}>
           {wishlists.map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
@@ -238,6 +240,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
     {createOpen && <CreateWishlistModal close={() => setCreateOpen(false)} create={createWishlist} />}
     {shareOpen && <OpenShareModal accessToken={token} accountId={user.id} initialToken={window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]} close={() => setShareOpen(false)} save={saveShare} onError={onError} />}
     {friendsOpen && <FriendsModal token={token} close={() => setFriendsOpen(false)} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setFriendsOpen(false); select({ kind: 'shared', share }) }} />}
+    {peopleSearchOpen && <UserSearchModal token={token} close={() => setPeopleSearchOpen(false)} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setPeopleSearchOpen(false); select({ kind: 'shared', share }) }} />}
     {activityOpen && <ActivityModal token={token} items={activity} changed={setActivity} close={() => setActivityOpen(false)} onError={onError} />}
     {accountOpen && <AccountModal token={token} user={user} userChanged={setUser} close={() => setAccountOpen(false)} save={async (profile) => { try { setUser(await api.updateProfile(token, profile)); setAccountOpen(false); notify('Profile updated') } catch (e) { onError(e) } }} onError={onError} notify={notify} logout={logout} />}
     {tutorialOpen && <TutorialModal close={() => { localStorage.setItem(tutorialKey, '1'); setTutorialOpen(false) }} />}
@@ -324,21 +327,29 @@ function OpenShareModal({ accountId, initialToken, close, save, onError }: { acc
 /* eslint-enable react-hooks/exhaustive-deps */
 function FriendsModal({ token, close, onError, notify, openShare }: { token: string; close: () => void; onError: (e: unknown) => void; notify: (s: string) => void; openShare: (share: AccountSharedWishlist) => void }) {
   const [friends, setFriends] = useState<Friendship[]>([]), [requests, setRequests] = useState<Friendship[]>([]), [groups, setGroups] = useState<FriendGroup[]>([])
-  const [query, setQuery] = useState(''), [results, setResults] = useState<SocialUser[]>([]), [groupName, setGroupName] = useState('')
+  const [groupName, setGroupName] = useState('')
   const load = useCallback(async () => { try { const [f, r, g] = await Promise.all([api.friends(token), api.friendRequests(token), api.friendGroups(token)]); setFriends(f); setRequests(r); setGroups(g) } catch (e) { onError(e) } }, [token, onError])
   useEffect(() => { void load() }, [load])
-  useEffect(() => { const timer = window.setTimeout(() => { if (query.trim().length >= 2) api.searchUsers(token, query.trim()).then(setResults).catch(onError); else setResults([]) }, 250); return () => window.clearTimeout(timer) }, [query, token, onError])
-  const incoming = requests.filter((r) => r.direction === 'incoming'), outgoingIDs = new Set(requests.filter((r) => r.direction === 'outgoing').map((r) => r.user.id)), friendIDs = new Set(friends.map((f) => f.user.id))
+  const incoming = requests.filter((r) => r.direction === 'incoming')
   const [profile, setProfile] = useState<Friendship | null>(null)
   if (profile) return <FriendProfileModal token={token} person={profile.user} friendship={profile.status === 'accepted' ? profile : undefined} close={() => setProfile(null)} removed={async () => { setProfile(null); await load(); notify('Friend removed') }} openShare={openShare} onError={onError} />
   return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="Your private circle" title="Friends & groups" close={close} /><div className="social-stack">
-    <Field label="Find by username"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search usernames" autoFocus /></Field>
-    {results.map((person) => { const friend = friends.find((item) => item.user.id === person.id); return <SocialRow key={person.id} person={person} action={<div className="social-actions"><button className="secondary" onClick={() => setProfile(friend || { id: '', user: person, direction: 'outgoing', status: 'pending' })}>View lists</button><button className="secondary" disabled={friendIDs.has(person.id) || outgoingIDs.has(person.id)} onClick={async () => { try { await api.requestFriend(token, person.id); notify('Friend request sent'); await load() } catch (e) { onError(e) } }}>{friendIDs.has(person.id) ? 'Friends' : outgoingIDs.has(person.id) ? 'Requested' : 'Add friend'}</button></div>} /> })}
     {incoming.length > 0 && <section><h3>Requests</h3>{incoming.map((request) => <SocialRow key={request.id} person={request.user} action={<button className="primary" onClick={async () => { try { await api.acceptFriend(token, request.id); notify('Friend added'); await load() } catch (e) { onError(e) } }}>Accept</button>} />)}</section>}
     <section><h3>Friends</h3>{friends.length ? friends.map((friend) => <button className="profile-list-row" key={friend.id} onClick={() => setProfile(friend)}><Avatar name={friend.user.displayName || friend.user.username} userId={friend.user.id} hasAvatar={friend.user.hasAvatar} /><span><strong>{friend.user.displayName || `@${friend.user.username}`}</strong><small>@{friend.user.username}</small></span><ChevronRight /></button>) : <p className="hint">Search for a username to start your private circle.</p>}</section>
     <section><h3>Private groups</h3><form className="inline-social-form" onSubmit={async (e) => { e.preventDefault(); if (!groupName.trim()) return; try { await api.createFriendGroup(token, groupName.trim()); setGroupName(''); await load() } catch (error) { onError(error) } }}><input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Family, close friends…" /><button className="secondary">Create</button></form>
       {groups.map((group) => <details className="social-group" key={group.id}><summary>{group.name}<small>{group.members.length} members</small></summary>{friends.map((friend) => { const checked = group.members.some((member) => member.id === friend.user.id); return <label className="audience-choice" key={friend.user.id}><input type="checkbox" checked={checked} onChange={async () => { try { checked ? await api.removeGroupMember(token, group.id, friend.user.id) : await api.addGroupMember(token, group.id, friend.user.id); await load() } catch (e) { onError(e) } }} /><span>{friend.user.displayName || `@${friend.user.username}`}<small>@{friend.user.username}</small></span></label> })}</details>)}
     </section>
+  </div></Modal>
+}
+
+function UserSearchModal({ token, close, onError, notify, openShare }: { token: string; close: () => void; onError: (e: unknown) => void; notify: (s: string) => void; openShare: (share: AccountSharedWishlist) => void }) {
+  const [query, setQuery] = useState(''), [results, setResults] = useState<SocialUser[]>([]), [friends, setFriends] = useState<Friendship[]>([]), [requests, setRequests] = useState<Friendship[]>([]), [profile, setProfile] = useState<SocialUser | null>(null)
+  const loadRelationships = useCallback(async () => { try { const [f, r] = await Promise.all([api.friends(token), api.friendRequests(token)]); setFriends(f); setRequests(r) } catch (e) { onError(e) } }, [token, onError])
+  useEffect(() => { void loadRelationships() }, [loadRelationships])
+  useEffect(() => { const timer = window.setTimeout(() => { if (query.trim().length >= 2) api.searchUsers(token, query.trim()).then(setResults).catch(onError); else setResults([]) }, 250); return () => window.clearTimeout(timer) }, [query, token, onError])
+  if (profile) { const friendship = friends.find((item) => item.user.id === profile.id); return <FriendProfileModal token={token} person={profile} friendship={friendship} close={() => setProfile(null)} removed={async () => { setProfile(null); await loadRelationships(); notify('Friend removed') }} openShare={openShare} onError={onError} /> }
+  return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="Discover public wishlists" title="Find people" close={close} /><div className="social-stack"><Field label="Search by username"><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search usernames" autoFocus /></Field>
+    {query.trim().length < 2 ? <p className="hint">Enter at least two characters to find a profile.</p> : results.length ? results.map((person) => { const friendship = friends.find((item) => item.user.id === person.id), requested = requests.some((item) => item.user.id === person.id && item.direction === 'outgoing'); return <SocialRow key={person.id} person={person} action={<div className="social-actions"><button className="secondary" onClick={() => setProfile(person)}>View lists</button><button className="secondary" disabled={Boolean(friendship) || requested} onClick={async () => { try { await api.requestFriend(token, person.id); notify('Friend request sent'); await loadRelationships() } catch (e) { onError(e) } }}>{friendship ? 'Friends' : requested ? 'Requested' : 'Add friend'}</button></div>} /> }) : <p className="hint">No matching users found.</p>}
   </div></Modal>
 }
 
