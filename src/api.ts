@@ -38,6 +38,7 @@ export const api = {
   resetPassword: (token: string, password: string) => request<{ message: string }>('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   me: (token: string) => request<CurrentUser>('/v1/me', { headers: auth(token) }),
   updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
+  deleteAccount: (token: string) => request<void>('/v1/me', { method: 'DELETE', headers: auth(token) }),
   avatarURL: (userId: string) => `${API_URL}/v1/users/${userId}/avatar`,
   uploadAvatar: (token: string, file: File) => avatarRequest(token, 'PUT', file),
   removeAvatar: (token: string) => avatarRequest(token, 'DELETE'),

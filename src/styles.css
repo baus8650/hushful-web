@@ -199,6 +199,11 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .avatar-editor { display:flex; align-items:center; gap:16px; padding:14px; border:1px solid var(--line); border-radius:14px; background:#f7f4ee; }.avatar-editor>.avatar{width:64px;height:64px;font-size:1.25rem;flex:none}.avatar-editor>div{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.avatar-editor small{display:block;width:100%;color:var(--muted);font-size:.7rem}.avatar-upload{display:inline-flex;cursor:pointer}.avatar-upload input{display:none}
 .notification-badge { margin-left:auto; min-width:20px; height:20px; padding:0 6px; display:grid; place-items:center; border-radius:999px; background:#8b6e95; color:white; font-size:.65rem; font-weight:800; }
 .guest-shared-detail { min-height:100vh; padding:clamp(24px, 5vw, 72px); background:var(--surface, #f8f5f0); }
+.username-input { display:flex; align-items:center; gap:4px; border:1px solid var(--line); border-radius:12px; background:white; padding-left:14px; }
+.username-input span { color:#8c8490; }
+.username-input input { border:0; background:transparent; padding-left:0; width:100%; }
+.danger-zone { margin-top:10px; padding:18px; border:1px solid #e3c4c4; border-radius:16px; background:#fff8f7; }
+.danger-zone p { margin:6px 0 14px; color:#7c6f70; font-size:.9rem; }
 .activity-list { display:flex; flex-direction:column; gap:8px; }.activity-list .empty-state{min-height:260px}
 .activity-item { display:grid; grid-template-columns:42px 1fr 34px; gap:12px; align-items:start; padding:14px; border:1px solid var(--line); border-radius:13px; background:#faf8f3; }.activity-item.unread{background:#f0eaf3;border-color:#d7c9dd}.activity-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:#e5dfe8;color:var(--sage-dark)}.activity-icon svg{width:19px}.activity-item strong{font-size:.88rem}.activity-item p{margin:4px 0;color:var(--muted);font-size:.8rem;line-height:1.4}.activity-item small{color:#96988f;font-size:.68rem}
 .inline-social-form { display:flex; gap:9px; margin-bottom:10px; }.inline-social-form input{flex:1}
