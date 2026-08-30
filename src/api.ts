@@ -59,6 +59,7 @@ export const api = {
   acceptFriendFrom: (token: string, userId: string) => request<Friendship>(`/v1/friend-requests/from/${userId}/accept`, { method: 'POST', headers: auth(token) }),
   declineFriendFrom: (token: string, userId: string) => request<void>(`/v1/friend-requests/from/${userId}`, { method: 'DELETE', headers: auth(token) }),
   removeFriendship: (token: string, friendshipId: string) => request<void>(`/v1/friendships/${friendshipId}`, { method: 'DELETE', headers: auth(token) }),
+  blockUser: (token: string, userId: string) => request<void>(`/v1/blocks/${userId}`, { method: 'PUT', headers: auth(token) }),
   friendGroups: (token: string) => request<FriendGroup[]>('/v1/friend-groups', { headers: auth(token) }),
   createFriendGroup: (token: string, name: string) => request<FriendGroup>('/v1/friend-groups', { method: 'POST', headers: auth(token), body: JSON.stringify({ name }) }),
   addGroupMember: (token: string, groupId: string, userId: string) => request<FriendGroup>(`/v1/friend-groups/${groupId}/members/${userId}`, { method: 'PUT', headers: auth(token) }),
