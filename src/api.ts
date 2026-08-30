@@ -69,7 +69,7 @@ export const api = {
   wishlists: (token: string) => request<Wishlist[]>('/v1/wishlists', { headers: auth(token) }),
   wishlistSettings: (token: string, wishlistId: string) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { headers: auth(token) }),
   updateWishlistSettings: (token: string, wishlistId: string, settings: Partial<WishlistSettings>) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { method: 'PATCH', headers: auth(token), body: JSON.stringify(settings) }),
-  createWishlist: (token: string, title: string) => request<Wishlist>('/v1/wishlists', { method: 'POST', headers: auth(token), body: JSON.stringify({ title }) }),
+  createWishlist: (token: string, title: string, visibility: 'public' | 'private') => request<Wishlist>('/v1/wishlists', { method: 'POST', headers: auth(token), body: JSON.stringify({ title, visibility }) }),
   items: (token: string, id: string) => request<WishlistItem[]>(`/v1/wishlists/${id}/items`, { headers: auth(token) }),
   createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
   async updateItem(token: string, wishlistId: string, itemId: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number }) {

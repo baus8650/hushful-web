@@ -2,12 +2,13 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNod
 import { Bell, Check, ChevronRight, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, Sparkles, Trash2, User, Users, X } from 'lucide-react'
 import { api, ApiError } from './api'
 import { authStorage, shareStorage } from './storage'
-import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ProfileWishlist, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistItem } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ProfileWishlist, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistItem } from './types'
 
 type View = { kind: 'home' } | { kind: 'wishlist'; wishlist: Wishlist } | { kind: 'shared'; share: SharedWishlist }
 
 export default function App() {
   const resetToken = new URLSearchParams(window.location.search).get('resetToken')
+  const guestShareToken = window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]
   const [token, setToken] = useState<string | null>(authStorage.get())
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [loading, setLoading] = useState(Boolean(token))
@@ -31,12 +32,55 @@ export default function App() {
   }, [toast])
 
   if (resetToken) return <ResetPasswordScreen token={resetToken} />
+  if (guestShareToken) return <GuestShareScreen shareToken={guestShareToken} />
   if (loading) return <FullPageLoader />
   if (!token || !user) return <AuthScreen onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} />
   return <>
     <Dashboard token={token} user={user} setUser={setUser} logout={logout} onError={onError} notify={setToast} />
     {toast && <div className="toast" role="status"><Check />{toast}</div>}
   </>
+}
+
+function GuestShareScreen({ shareToken }: { shareToken: string }) {
+  const storageKey = `hushful.guest.viewer.${shareToken}`
+  const [share, setShare] = useState<ShareViewResponse['wishlist'] | null>(null)
+  const [viewerToken, setViewerToken] = useState(() => localStorage.getItem(storageKey) || '')
+  const [rows, setRows] = useState<SharedItemRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [identity, setIdentity] = useState<{ itemId: string; purchasedQuantity: number } | null>(null)
+  const [noteItem, setNoteItem] = useState<{ itemId: string; note?: string; displayName?: string; shareName?: boolean } | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true); setError('')
+    try {
+      const opened = await api.openShare(shareToken, viewerToken || undefined)
+      localStorage.setItem(storageKey, opened.viewerToken)
+      setViewerToken(opened.viewerToken)
+      setShare(opened.wishlist)
+      setRows(await api.sharedItems(shareToken, opened.viewerToken))
+    } catch (e) { setError(e instanceof Error ? e.message : 'This share link is unavailable.') }
+    finally { setLoading(false) }
+  }, [shareToken, storageKey, viewerToken])
+  useEffect(() => { void load() }, [])
+
+  async function update(itemId: string, body: { purchasedQuantity?: number; note?: string; displayName?: string; shareName?: boolean }) {
+    if (!viewerToken) return
+    try {
+      const updated = await api.updateSharedItem(shareToken, itemId, viewerToken, body)
+      setRows((all) => all.map((row) => row.item.id === itemId ? updated : row))
+    } catch (e) { setError(e instanceof Error ? e.message : 'Unable to update this wish.'); void load() }
+  }
+
+  if (loading) return <FullPageLoader />
+  if (error && !share) return <main className="auth-page"><div className="auth-brand"><Logo /><p>This private link may have expired or been revoked.</p></div><section className="auth-card"><h1>Wishlist unavailable</h1><p className="auth-error">{error}</p></section></main>
+  return <main className="page detail-page shared-detail guest-shared-detail">
+    <header className="page-heading"><div><Logo compact /><p className="eyebrow">Shared by {share?.sharedByName || 'Someone'}</p><h1>{share?.title}</h1><p>No account is needed. Claims and notes stay hidden from the list owner.</p></div><div className="heading-actions"><button className="secondary" onClick={() => void load()}><RefreshCw /> Refresh</button></div></header>
+    {error && <p className="auth-error" role="alert">{error}</p>}
+    {rows.length ? <div className="items-grid">{rows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={() => void update(row.item.id, { note: '', shareName: false })} />)}</div> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
+    {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, displayName, shareName }); setIdentity(null) }} />}
+    {noteItem && <NoteModal initial={noteItem} defaultName="" close={() => setNoteItem(null)} save={(note, displayName, shareName) => { const itemId = noteItem.itemId; setNoteItem(null); return update(itemId, { note, displayName, shareName }) }} />}
+  </main>
 }
 
 function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: string) => void; onError: (e: unknown) => void }) {
@@ -202,8 +246,8 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
 
   function select(next: View) { setView(next); setMobileNav(false) }
   async function toggleWishlistPin(id: string) { try { setPins(await (pins.wishlistIDs.includes(id) ? api.unpin(token, 'wishlist', id) : api.pin(token, 'wishlist', id))); notify(pins.wishlistIDs.includes(id) ? 'Removed from pinned lists' : 'Pinned to home') } catch (e) { onError(e) } }
-  async function createWishlist(title: string) {
-    try { const created = await api.createWishlist(token, title); setWishlists((old) => [created, ...old]); setCreateOpen(false); select({ kind: 'wishlist', wishlist: created }); notify('Wishlist created') } catch (e) { onError(e) }
+  async function createWishlist(title: string, visibility: 'public' | 'private') {
+    try { const created = await api.createWishlist(token, title, visibility); setWishlists((old) => [created, ...old]); setCreateOpen(false); select({ kind: 'wishlist', wishlist: created }); notify('Wishlist created') } catch (e) { onError(e) }
   }
   function saveShare(share: SharedWishlist, viewerToken: string) {
     shareStorage.save(user.id, share, viewerToken); setShared(shareStorage.list(user.id)); setShareOpen(false); select({ kind: 'shared', share })
@@ -333,7 +377,7 @@ function TutorialModal({ close }: { close: () => void }) { const [page, setPage]
 function TutorialPreview({ page }: { page: number }) { const titles = ['Hushful', 'Birthday Wishes', 'Find people', 'Pinned', 'Activity']; const controls = page === 0 ? <><TutorialCallout icon={<Users />} label="People" /><TutorialCallout icon={<Bell />} label="Activity" /></> : page === 1 ? <><TutorialCallout icon={<Share2 />} label="Share" /><TutorialCallout icon={<Plus />} label="Add item" /></> : page === 2 ? <TutorialCallout icon={<User />} label="Search" /> : page === 3 ? <TutorialCallout icon={<Pin />} label="Pinned" /> : <TutorialCallout icon={<Settings />} label="Privacy" />; return <div className="tutorial-preview"><div className="tutorial-preview-nav"><strong>{titles[page]}</strong><div>{controls}</div></div><div className="tutorial-preview-body">{page === 0 ? <><TutorialMiniRow title="My wishlists" detail="Everything you’re wishing for" /><TutorialMiniRow title="Pinned people & groups" detail="Your shortcuts" /></> : page === 1 ? <><TutorialMiniRow title="Cozy blanket" detail="Private · Shared with Family" /><small>Choose friends, groups, public access, or a guest link.</small></> : page === 2 ? <><TutorialMiniRow title="Alex Morgan" detail="@alex · View profile" /><div className="tutorial-detail-actions"><button>Send friend request</button></div></> : page === 3 ? <><TutorialMiniRow title="Alex’s Birthday" detail="Pinned list" /><TutorialMiniRow title="Family" detail="Pinned group" /></> : <><TutorialMiniRow title="Friend request" detail="Accept or decline" /><small>Control discoverability and requests in Account & privacy.</small></>}</div></div> }
 function TutorialCallout({ icon, label }: { icon: ReactNode; label: string }) { return <span className="tutorial-callout"><i>{icon}</i><small>{label}</small></span> }
 function TutorialMiniRow({ title, detail }: { title: string; detail: string }) { return <div className="tutorial-mini-row"><i><Gift /></i><span><strong>{title}</strong><small>{detail}</small></span><ChevronRight /></div> }
-function CreateWishlistModal({ close, create }: { close: () => void; create: (title: string) => void }) { const [title, setTitle] = useState(''); return <Modal close={close}><ModalHeader eyebrow="A new collection" title="Name your wishlist" close={close} /><form className="stack-form" onSubmit={(e) => { e.preventDefault(); create(title.trim()) }}><Field label="Wishlist name"><input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Birthday ideas, Cozy home…" /></Field><div className="modal-actions"><button type="button" className="secondary" onClick={close}>Cancel</button><button className="primary" disabled={!title.trim()}>Create wishlist</button></div></form></Modal> }
+function CreateWishlistModal({ close, create }: { close: () => void; create: (title: string, visibility: 'public' | 'private') => void }) { const [title, setTitle] = useState(''), [visibility, setVisibility] = useState<'public' | 'private'>('public'); return <Modal close={close}><ModalHeader eyebrow="A new collection" title="Create a wishlist" close={close} /><form className="stack-form" onSubmit={(e) => { e.preventDefault(); create(title.trim(), visibility) }}><Field label="Wishlist name"><input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Birthday ideas, Cozy home…" /></Field><Field label="Visibility"><select value={visibility} onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}><option value="public">Public — anyone can view</option><option value="private">Private — only people you choose</option></select></Field><p className="hint">You can change this later from the list’s sharing settings.</p><div className="modal-actions"><button type="button" className="secondary" onClick={close}>Cancel</button><button className="primary" disabled={!title.trim()}>Create wishlist</button></div></form></Modal> }
 function AddItemModal({ initial, close, save }: { initial?: WishlistItem; close: () => void; save: (item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number }) => void }) { const editing = Boolean(initial); const [title, setTitle] = useState(initial?.title || ''); const [url, setUrl] = useState(initial?.url || ''); const [price, setPrice] = useState(initial?.price?.toString() || ''); const [note, setNote] = useState(initial?.ownerNote || ''); const [quantity, setQuantity] = useState(initial?.quantity || 1); return <Modal close={close} size="modal-wide"><ModalHeader eyebrow={editing ? 'A thoughtful adjustment' : 'One more lovely thing'} title={editing ? 'Edit this wish' : 'Add a wish'} close={close} /><form className="stack-form" onSubmit={(e) => { e.preventDefault(); save({ title: title.trim(), url: url.trim() || undefined, price: price ? Number(price.replace(',', '.')) : undefined, ownerNote: note.trim() || undefined, quantity }) }}><Field label="Item title"><input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What are you wishing for?" /></Field><div className="field-row"><Field label="Link (optional)"><input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" /></Field><Field label="Price (optional)"><div className="money-input"><span>$</span><input inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" /></div></Field></div><Field label="Quantity"><input type="number" min="1" max="999" value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))} /></Field><Field label="A note (optional)"><textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Size, color, or why you love it…" /></Field><div className="modal-actions"><button type="button" className="secondary" onClick={close}>Cancel</button><button className="primary" disabled={!title.trim()}>{editing ? 'Save changes' : 'Add to wishlist'}</button></div></form></Modal> }
 /* Deep-link initialization intentionally runs once with the token from the first URL. */
 /* eslint-disable react-hooks/exhaustive-deps */
@@ -406,7 +450,7 @@ function SocialShareModal({ token, wishlist, close, notify, onError }: { token: 
   return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="Share without a link" title={`Share “${wishlist.title}”`} close={close} />{loading ? <FullPageLoader embedded /> : <div className="social-stack"><Field label="Wishlist visibility"><select value={visibility} onChange={(e) => setVisibility(e.target.value as 'private' | 'public')}><option value="private">Private</option><option value="public">Public</option></select></Field><p className="muted">{visibility === 'public' ? 'Anyone can view this list, and friends will see it on your profile. Private selections below remain available too.' : 'This list is hidden from the public. Only the friends and groups you select below can open it.'}</p>
     {groups.length > 0 && <section><h3>Groups</h3>{groups.map((group) => <label className="audience-choice" key={group.id}><input type="checkbox" checked={audience.groupIDs.includes(group.id)} onChange={() => toggle('groupIDs', group.id)} /><span>{group.name}<small>{group.members.length} friends</small></span></label>)}</section>}
     <section><h3>Friends</h3>{friends.length ? friends.map((friend) => <label className="audience-choice" key={friend.user.id}><input type="checkbox" checked={audience.userIDs.includes(friend.user.id)} onChange={() => toggle('userIDs', friend.user.id)} /><Avatar name={friend.user.displayName || friend.user.username} userId={friend.user.id} hasAvatar={friend.user.hasAvatar} /><span>{friend.user.displayName || `@${friend.user.username}`}<small>@{friend.user.username}</small></span></label>) : <p className="hint">Add friends first, or use a guest link below.</p>}</section>
-    <div className="guest-link-option"><div><strong>Sharing with someone without Hushful?</strong><small>Guest links work like unlisted links and can be forwarded.</small></div><button className="secondary" onClick={guestLink}><Link2 /> Create guest link</button></div>
+    <div className="guest-link-option"><div><strong>Sharing with someone without Hushful?</strong><small>Anyone with a guest link can view, claim wishes, and leave notes without an account. Private lists remain hidden elsewhere in Hushful.</small></div><button className="secondary" onClick={guestLink}><Link2 /> Create guest link</button></div>
     <div className="modal-actions"><button className="secondary" onClick={close}>Cancel</button><button className="primary" disabled={saving} onClick={save}>{saving && <LoaderCircle className="spin" />} Save audience</button></div></div>}</Modal>
 }
 
