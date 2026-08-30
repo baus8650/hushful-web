@@ -247,7 +247,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   function select(next: View) { setView(next); setMobileNav(false) }
   async function toggleWishlistPin(id: string) { try { setPins(await (pins.wishlistIDs.includes(id) ? api.unpin(token, 'wishlist', id) : api.pin(token, 'wishlist', id))); notify(pins.wishlistIDs.includes(id) ? 'Removed from pinned lists' : 'Pinned to home') } catch (e) { onError(e) } }
   async function createWishlist(title: string, visibility: 'public' | 'private') {
-    try { const created = await api.createWishlist(token, title, visibility); setWishlists((old) => [created, ...old]); setCreateOpen(false); select({ kind: 'wishlist', wishlist: created }); notify('Wishlist created') } catch (e) { onError(e) }
+    try { let created = await api.createWishlist(token, title, visibility); if (created.visibility !== visibility) { const settings = await api.updateWishlistSettings(token, created.id, { visibility }); created = { ...created, visibility: settings.visibility } } setWishlists((old) => [created, ...old]); setCreateOpen(false); select({ kind: 'wishlist', wishlist: created }); notify('Wishlist created') } catch (e) { onError(e) }
   }
   function saveShare(share: SharedWishlist, viewerToken: string) {
     shareStorage.save(user.id, share, viewerToken); setShared(shareStorage.list(user.id)); setShareOpen(false); select({ kind: 'shared', share })
