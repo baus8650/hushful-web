@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Bell, Check, ChevronRight, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, Sparkles, Trash2, User, Users, X } from 'lucide-react'
+import { Bell, Check, ChevronRight, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, Moon, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, Sparkles, Sun, Trash2, User, Users, X } from 'lucide-react'
 import { api, ApiError } from './api'
 import { authStorage, shareStorage } from './storage'
 import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ProfileWishlist, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistItem } from './types'
@@ -13,6 +13,9 @@ export default function App() {
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [loading, setLoading] = useState(Boolean(token))
   const [toast, setToast] = useState('')
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => { const saved = localStorage.getItem('hushful.theme'); return saved === 'light' || saved === 'dark' ? saved : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' })
+  useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('hushful.theme', theme) }, [theme])
+  const themeToggle = <ThemeToggle theme={theme} toggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
 
   const logout = useCallback(() => { authStorage.clear(); setToken(null); setUser(null) }, [])
   const onError = useCallback((error: unknown) => {
@@ -31,15 +34,20 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
 
-  if (resetToken) return <ResetPasswordScreen token={resetToken} />
-  if (guestShareToken) return <GuestShareScreen shareToken={guestShareToken} />
+  if (resetToken) return <>{themeToggle}<ResetPasswordScreen token={resetToken} /></>
+  if (guestShareToken) return <>{themeToggle}<GuestShareScreen shareToken={guestShareToken} /></>
   if (loading) return <FullPageLoader />
-  if (!token || !user) return <AuthScreen onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} />
-  if (!user.username) return <UsernameOnboarding token={token} completed={setUser} logout={logout} />
+  if (!token || !user) return <>{themeToggle}<AuthScreen onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} /></>
+  if (!user.username) return <>{themeToggle}<UsernameOnboarding token={token} completed={setUser} logout={logout} /></>
   return <>
+    {themeToggle}
     <Dashboard token={token} user={user} setUser={setUser} logout={logout} onError={onError} notify={setToast} />
     {toast && <div className="toast" role="status"><Check />{toast}</div>}
   </>
+}
+
+function ThemeToggle({ theme, toggle }: { theme: 'light' | 'dark'; toggle: () => void }) {
+  return <button className="theme-toggle" onClick={toggle} aria-label={theme === 'dark' ? 'Use light mode' : 'Use dark mode'} title={theme === 'dark' ? 'Use light mode' : 'Use dark mode'}>{theme === 'dark' ? <Sun /> : <Moon />}</button>
 }
 
 function UsernameOnboarding({ token, completed, logout }: { token: string; completed: (user: CurrentUser) => void; logout: () => void }) {
