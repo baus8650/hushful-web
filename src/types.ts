@@ -9,6 +9,7 @@ export interface Wishlist { id: string; title: string; visibility: 'private' | '
 export interface WishlistSettings { visibility: 'private' | 'public'; showPurchaserNames: boolean; allowMultiplePurchases: boolean; allowNotes: boolean; autoLockOnPurchase: boolean }
 export interface ProfileWishlist { wishlistID: string; title: string; accountShareID?: string }
 export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; sharedWishlists: ProfileWishlist[] }
+export interface Pins { wishlistIDs: string[]; userIDs: string[]; groupIDs: string[] }
 export interface WishlistItem {
   id: string; title: string; url?: string; price?: number; ownerNote?: string; quantity?: number;
   createdAt: string; updatedAt: string; wishlist: { id: string }

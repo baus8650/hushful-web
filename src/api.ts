@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -44,6 +44,11 @@ export const api = {
   activity: (token: string) => request<ActivityItem[]>('/v1/activity', { headers: auth(token) }),
   readActivity: (token: string, id: string) => request<ActivityItem>(`/v1/activity/${id}/read`, { method: 'POST', headers: auth(token) }),
   readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
+  deleteActivity: (token: string, id: string) => request<void>(`/v1/activity/${id}`, { method: 'DELETE', headers: auth(token) }),
+  clearActivity: (token: string) => request<void>('/v1/activity', { method: 'DELETE', headers: auth(token) }),
+  pins: (token: string) => request<Pins>('/v1/pins', { headers: auth(token) }),
+  pin: (token: string, type: 'wishlist' | 'user' | 'group', id: string) => request<Pins>(`/v1/pins/${type}/${id}`, { method: 'PUT', headers: auth(token) }),
+  unpin: (token: string, type: 'wishlist' | 'user' | 'group', id: string) => request<Pins>(`/v1/pins/${type}/${id}`, { method: 'DELETE', headers: auth(token) }),
   searchUsers: (token: string, q: string) => request<SocialUser[]>(`/v1/users/search?q=${encodeURIComponent(q)}`, { headers: auth(token) }),
   friends: (token: string) => request<Friendship[]>('/v1/friends', { headers: auth(token) }),
   friendProfile: (token: string, userId: string) => request<FriendProfile>(`/v1/users/${userId}/profile`, { headers: auth(token) }),

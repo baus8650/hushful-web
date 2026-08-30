@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Bell, Check, ChevronRight, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, PackageCheck, Pencil, Plus, RefreshCw, Send, Settings, Share2, Sparkles, Trash2, User, Users, X } from 'lucide-react'
+import { Bell, Check, ChevronRight, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, Sparkles, Trash2, User, Users, X } from 'lucide-react'
 import { api, ApiError } from './api'
 import { authStorage, shareStorage } from './storage'
-import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, ProfileWishlist, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistItem } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ProfileWishlist, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistItem } from './types'
 
 type View = { kind: 'home' } | { kind: 'wishlist'; wishlist: Wishlist } | { kind: 'shared'; share: SharedWishlist }
 
@@ -156,11 +156,16 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   const [busy, setBusy] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
+  const [sharedLibraryOpen, setSharedLibraryOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [friendsOpen, setFriendsOpen] = useState(false)
   const [peopleSearchOpen, setPeopleSearchOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [activity, setActivity] = useState<ActivityItem[]>([])
+  const [pins, setPins] = useState<Pins>({ wishlistIDs: [], userIDs: [], groupIDs: [] })
+  const [socialFriends, setSocialFriends] = useState<Friendship[]>([])
+  const [socialGroups, setSocialGroups] = useState<FriendGroup[]>([])
+  const [personToOpen, setPersonToOpen] = useState<SocialUser | undefined>()
   const [mobileNav, setMobileNav] = useState(false)
   const tutorialKey = `hushful.tutorial.seen.${user.id}`
   const [tutorialOpen, setTutorialOpen] = useState(() => localStorage.getItem(tutorialKey) !== '1')
@@ -169,6 +174,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   useEffect(() => { void loadWishlists() }, [loadWishlists])
   const loadActivity = useCallback(async () => { try { setActivity(await api.activity(token)) } catch (e) { onError(e) } }, [token, onError])
   useEffect(() => { void loadActivity(); const timer = window.setInterval(() => void loadActivity(), 30000); return () => window.clearInterval(timer) }, [loadActivity])
+  useEffect(() => { Promise.all([api.pins(token), api.friends(token), api.friendGroups(token)]).then(([p, f, g]) => { setPins(p); setSocialFriends(f); setSocialGroups(g) }).catch(onError) }, [token, onError])
   useEffect(() => {
     async function syncAccountShares() {
       try {
@@ -195,6 +201,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   }, [])
 
   function select(next: View) { setView(next); setMobileNav(false) }
+  async function toggleWishlistPin(id: string) { try { setPins(await (pins.wishlistIDs.includes(id) ? api.unpin(token, 'wishlist', id) : api.pin(token, 'wishlist', id))); notify(pins.wishlistIDs.includes(id) ? 'Removed from pinned lists' : 'Pinned to home') } catch (e) { onError(e) } }
   async function createWishlist(title: string) {
     try { const created = await api.createWishlist(token, title); setWishlists((old) => [created, ...old]); setCreateOpen(false); select({ kind: 'wishlist', wishlist: created }); notify('Wishlist created') } catch (e) { onError(e) }
   }
@@ -225,9 +232,15 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
         <NavGroup title="My wishlists" action={<button aria-label="New wishlist" onClick={() => setCreateOpen(true)}><Plus /></button>}>
           {wishlists.map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
         </NavGroup>
-        <NavGroup title="Shared with me" action={<button aria-label="Open shared wishlist" onClick={() => setShareOpen(true)}><Link2 /></button>}>
-          {shared.map((share) => <button key={share.accountShareID || share.shareToken} className={view.kind === 'shared' && (view.share.accountShareID || view.share.shareToken) === (share.accountShareID || share.shareToken) ? 'active' : ''} onClick={() => select({ kind: 'shared', share })}><span className="nav-dot shared-dot" />{share.title}</button>)}
+        <NavGroup title="Pinned lists" action={<Pin />}>
+          {wishlists.filter((wishlist) => pins.wishlistIDs.includes(wishlist.id)).map((wishlist) => <button key={wishlist.id} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
+          {shared.filter((share) => share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)).map((share) => <button key={share.accountShareID || share.shareToken} onClick={() => select({ kind: 'shared', share })}><span className="nav-dot shared-dot" />{share.title}</button>)}
         </NavGroup>
+        <NavGroup title="Pinned people & groups" action={<Users />}>
+          {socialFriends.filter((friend) => pins.userIDs.includes(friend.user.id)).map((friend) => <button key={friend.id} onClick={() => { setPersonToOpen(friend.user); setPeopleSearchOpen(true) }}><span className="nav-dot shared-dot" />{friend.user.displayName || `@${friend.user.username}`}</button>)}
+          {socialGroups.filter((group) => pins.groupIDs.includes(group.id)).map((group) => <button key={group.id} onClick={() => setFriendsOpen(true)}><span className="nav-dot shared-dot" />{group.name}</button>)}
+        </NavGroup>
+        <button className="nav-home" onClick={() => setSharedLibraryOpen(true)}><Link2 /> All shared lists</button>
       </nav>
       <button className="tutorial-button" onClick={() => setTutorialOpen(true)}><CircleHelp /> How Hushful works</button>
       <button className="profile-chip" onClick={() => setAccountOpen(true)}><Avatar name={user.displayName || user.email} userId={user.id} hasAvatar={user.hasAvatar} /><span><strong>{user.displayName || 'Your account'}</strong><small>{user.email}</small></span><Settings /></button>
@@ -235,12 +248,13 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
     {mobileNav && <button className="scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
     <main className="main-panel">
       <header className="mobile-header"><button className="icon-button" onClick={() => setMobileNav(true)}><Menu /></button><Logo compact /><span /></header>
-      {busy ? <FullPageLoader embedded /> : view.kind === 'home' ? <Home user={user} wishlists={wishlists} shared={shared} openWishlist={(w) => select({ kind: 'wishlist', wishlist: w })} openShared={(s) => select({ kind: 'shared', share: s })} newWishlist={() => setCreateOpen(true)} openShare={() => setShareOpen(true)} /> : view.kind === 'wishlist' ? <WishlistDetail token={token} wishlist={view.wishlist} onError={onError} notify={notify} /> : <SharedDetail token={token} accountId={user.id} defaultNoteName={user.displayName || user.email.split('@')[0]} share={view.share} onError={onError} onRemove={() => void removeShare(view.share)} onAdd={() => addShareToAccount(view.share)} />}
+      {busy ? <FullPageLoader embedded /> : view.kind === 'home' ? <Home user={user} wishlists={wishlists} shared={shared.filter((share) => Boolean(share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)))} openWishlist={(w) => select({ kind: 'wishlist', wishlist: w })} openShared={(s) => select({ kind: 'shared', share: s })} newWishlist={() => setCreateOpen(true)} openShare={() => setShareOpen(true)} /> : view.kind === 'wishlist' ? <WishlistDetail token={token} wishlist={view.wishlist} pinned={pins.wishlistIDs.includes(view.wishlist.id)} togglePin={() => void toggleWishlistPin(view.wishlist.id)} onError={onError} notify={notify} /> : <SharedDetail token={token} accountId={user.id} defaultNoteName={user.displayName || user.email.split('@')[0]} share={view.share} pinned={Boolean(view.share.wishlistID && pins.wishlistIDs.includes(view.share.wishlistID))} togglePin={() => view.share.wishlistID && void toggleWishlistPin(view.share.wishlistID)} onError={onError} onRemove={() => void removeShare(view.share)} onAdd={() => addShareToAccount(view.share)} />}
     </main>
     {createOpen && <CreateWishlistModal close={() => setCreateOpen(false)} create={createWishlist} />}
     {shareOpen && <OpenShareModal accessToken={token} accountId={user.id} initialToken={window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]} close={() => setShareOpen(false)} save={saveShare} onError={onError} />}
+    {sharedLibraryOpen && <Modal close={() => setSharedLibraryOpen(false)} size="modal-wide"><ModalHeader eyebrow="Your complete library" title="All shared lists" close={() => setSharedLibraryOpen(false)} /><div className="social-stack">{shared.length ? shared.map((share) => <button className="profile-list-row" key={share.accountShareID || share.shareToken} onClick={() => { setSharedLibraryOpen(false); select({ kind: 'shared', share }) }}><Gift /><span><strong>{share.title}</strong><small>Shared by {share.sharedByName || 'Someone'}</small></span><ChevronRight /></button>) : <p className="hint">No lists have been shared with you yet.</p>}<div className="modal-actions"><button className="secondary" onClick={() => { setSharedLibraryOpen(false); setShareOpen(true) }}><Link2 /> Open a link</button></div></div></Modal>}
     {friendsOpen && <FriendsModal token={token} close={() => setFriendsOpen(false)} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setFriendsOpen(false); select({ kind: 'shared', share }) }} />}
-    {peopleSearchOpen && <UserSearchModal token={token} close={() => setPeopleSearchOpen(false)} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setPeopleSearchOpen(false); select({ kind: 'shared', share }) }} />}
+    {peopleSearchOpen && <UserSearchModal token={token} initialPerson={personToOpen} close={() => { setPeopleSearchOpen(false); setPersonToOpen(undefined) }} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setPeopleSearchOpen(false); setPersonToOpen(undefined); select({ kind: 'shared', share }) }} />}
     {activityOpen && <ActivityModal token={token} items={activity} changed={setActivity} close={() => setActivityOpen(false)} onError={onError} />}
     {accountOpen && <AccountModal token={token} user={user} userChanged={setUser} close={() => setAccountOpen(false)} save={async (profile) => { try { setUser(await api.updateProfile(token, profile)); setAccountOpen(false); notify('Profile updated') } catch (e) { onError(e) } }} onError={onError} notify={notify} logout={logout} />}
     {tutorialOpen && <TutorialModal close={() => { localStorage.setItem(tutorialKey, '1'); setTutorialOpen(false) }} />}
@@ -261,7 +275,7 @@ function Home({ user, wishlists, shared, openWishlist, openShared, newWishlist, 
   </div>
 }
 
-function WishlistDetail({ token, wishlist, onError, notify }: { token: string; wishlist: Wishlist; onError: (e: unknown) => void; notify: (s: string) => void }) {
+function WishlistDetail({ token, wishlist, pinned, togglePin, onError, notify }: { token: string; wishlist: Wishlist; pinned: boolean; togglePin: () => void; onError: (e: unknown) => void; notify: (s: string) => void }) {
   const [items, setItems] = useState<WishlistItem[]>([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -271,7 +285,7 @@ function WishlistDetail({ token, wishlist, onError, notify }: { token: string; w
   useEffect(() => { void load() }, [load])
   async function remove(item: WishlistItem) { if (!window.confirm(`Remove “${item.title}” from this wishlist?`)) return; const old = items; setItems((all) => all.filter((i) => i.id !== item.id)); try { await api.deleteItem(token, wishlist.id, item.id); notify('Item removed') } catch (e) { setItems(old); onError(e) } }
   return <div className="page detail-page">
-    <header className="page-heading"><div><p className="eyebrow">My wishlist</p><h1>{wishlist.title}</h1><p>{items.length} {items.length === 1 ? 'wish' : 'wishes'} tucked away</p></div><div className="heading-actions"><button className="secondary" onClick={() => setSharing(true)}><Share2 /> Share</button><button className="primary" onClick={() => setAddOpen(true)}><Plus /> Add item</button></div></header>
+    <header className="page-heading"><div><p className="eyebrow">My wishlist</p><h1>{wishlist.title}</h1><p>{items.length} {items.length === 1 ? 'wish' : 'wishes'} tucked away</p></div><div className="heading-actions"><button className="secondary" onClick={togglePin}><Pin /> {pinned ? 'Unpin' : 'Pin'}</button><button className="secondary" onClick={() => setSharing(true)}><Share2 /> Share</button><button className="primary" onClick={() => setAddOpen(true)}><Plus /> Add item</button></div></header>
     {loading ? <FullPageLoader embedded /> : items.length ? <div className="items-grid">{items.map((item) => <article className="item-card" key={item.id}><div className="item-icon"><Gift /></div><div className="item-copy"><div className="item-title-row"><h3>{item.title}</h3>{item.price != null && <strong>{currency(item.price)}</strong>}</div><small>Quantity: {item.quantity || 1}</small>{item.ownerNote && <p>{item.ownerNote}</p>}{item.url && <a href={safeUrl(item.url)} target="_blank" rel="noreferrer">View item <ExternalLink /></a>}</div><div className="item-card-actions"><button className="edit-button" aria-label={`Edit ${item.title}`} onClick={() => setEditingItem(item)}><Pencil /></button><button className="delete-button" aria-label={`Delete ${item.title}`} onClick={() => remove(item)}><Trash2 /></button></div></article>)}</div> : <EmptyState icon={<Gift />} title="This list is ready for a first wish" text="Add an item, a thoughtful note, and an optional link or price." action={<button className="primary" onClick={() => setAddOpen(true)}><Plus /> Add your first item</button>} />}
     {addOpen && <AddItemModal close={() => setAddOpen(false)} save={async (item) => { try { const created = await api.createItem(token, wishlist.id, item); setItems((all) => [created, ...all]); setAddOpen(false); notify('Wish added') } catch (e) { onError(e) } }} />}
     {editingItem && <AddItemModal initial={editingItem} close={() => setEditingItem(null)} save={async (changes) => { try { const updated = await api.updateItem(token, wishlist.id, editingItem.id, changes); setItems((all) => all.map((item) => item.id === updated.id ? updated : item)); setEditingItem(null); notify('Wish updated') } catch (e) { onError(e) } }} />}
@@ -279,7 +293,7 @@ function WishlistDetail({ token, wishlist, onError, notify }: { token: string; w
   </div>
 }
 
-function SharedDetail({ token, accountId, defaultNoteName, share, onError, onRemove, onAdd }: { token: string; accountId: string; defaultNoteName: string; share: SharedWishlist; onError: (e: unknown) => void; onRemove: () => void; onAdd: () => Promise<void> }) {
+function SharedDetail({ token, accountId, defaultNoteName, share, pinned, togglePin, onError, onRemove, onAdd }: { token: string; accountId: string; defaultNoteName: string; share: SharedWishlist; pinned: boolean; togglePin: () => void; onError: (e: unknown) => void; onRemove: () => void; onAdd: () => Promise<void> }) {
   const viewerToken = shareStorage.viewerToken(accountId, share.shareToken)
   const [rows, setRows] = useState<SharedItemRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -290,7 +304,7 @@ function SharedDetail({ token, accountId, defaultNoteName, share, onError, onRem
   useEffect(() => { void load() }, [load])
   async function update(itemId: string, body: { purchased?: boolean; purchasedQuantity?: number; note?: string; displayName?: string; shareName?: boolean }) { if (!viewerToken && !share.accountShareID) return; try { const row = share.accountShareID ? await api.updateAccountSharedItem(token, share.accountShareID, itemId, body) : await api.updateSharedItem(share.shareToken, itemId, viewerToken!, body); setRows((all) => all.map((r) => r.item.id === itemId ? row : r)) } catch (e) { onError(e); void load() } }
   return <div className="page detail-page shared-detail">
-    <header className="page-heading"><div><p className="eyebrow">Shared by {share.sharedByName || 'Someone'}</p><h1>{share.title}</h1><p>Claims stay hidden from the person who made this list.</p></div><div className="heading-actions"><button className="secondary" onClick={() => void load()}><RefreshCw /> Refresh</button><button className="icon-button danger" aria-label="Remove saved list" onClick={onRemove}><Trash2 /></button></div></header>
+    <header className="page-heading"><div><p className="eyebrow">Shared by {share.sharedByName || 'Someone'}</p><h1>{share.title}</h1><p>Claims stay hidden from the person who made this list.</p></div><div className="heading-actions"><button className="secondary" disabled={!share.wishlistID} onClick={togglePin}><Pin /> {pinned ? 'Unpin' : 'Pin'}</button><button className="secondary" onClick={() => void load()}><RefreshCw /> Refresh</button><button className="icon-button danger" aria-label="Remove saved list" onClick={onRemove}><Trash2 /></button></div></header>
     <section className="save-shared-panel">
       <div><strong>{share.accountShareID ? 'Saved to your account' : 'Keep this list close'}</strong><span>{share.accountShareID ? 'You can save it again to verify the account connection.' : 'Add it to Shared With Me so it follows you across devices and sign-ins.'}</span></div>
       <div className="save-shared-actions">
@@ -328,8 +342,9 @@ function OpenShareModal({ accountId, initialToken, close, save, onError }: { acc
 function FriendsModal({ token, close, onError, notify, openShare }: { token: string; close: () => void; onError: (e: unknown) => void; notify: (s: string) => void; openShare: (share: AccountSharedWishlist) => void }) {
   const [friends, setFriends] = useState<Friendship[]>([]), [requests, setRequests] = useState<Friendship[]>([]), [groups, setGroups] = useState<FriendGroup[]>([])
   const [groupName, setGroupName] = useState(''), [query, setQuery] = useState(''), [results, setResults] = useState<SocialUser[]>([])
+  const [pins, setPins] = useState<Pins>({ wishlistIDs: [], userIDs: [], groupIDs: [] })
   const load = useCallback(async () => { try { const [f, r, g] = await Promise.all([api.friends(token), api.friendRequests(token), api.friendGroups(token)]); setFriends(f); setRequests(r); setGroups(g) } catch (e) { onError(e) } }, [token, onError])
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load(); api.pins(token).then(setPins).catch(onError) }, [load, token, onError])
   useEffect(() => { const timer = window.setTimeout(() => { if (query.trim().length >= 2) api.searchUsers(token, query.trim()).then(setResults).catch(onError); else setResults([]) }, 250); return () => window.clearTimeout(timer) }, [query, token, onError])
   const incoming = requests.filter((r) => r.direction === 'incoming')
   const [profile, setProfile] = useState<Friendship | null>(null)
@@ -340,13 +355,13 @@ function FriendsModal({ token, close, onError, notify, openShare }: { token: str
     {incoming.length > 0 && <section><h3>Requests</h3>{incoming.map((request) => <SocialRow key={request.id} person={request.user} action={<button className="primary" onClick={async () => { try { await api.acceptFriend(token, request.id); notify('Friend added'); await load() } catch (e) { onError(e) } }}>Accept</button>} />)}</section>}
     <section><h3>Friends</h3>{friends.length ? friends.map((friend) => <button className="profile-list-row" key={friend.id} onClick={() => setProfile(friend)}><Avatar name={friend.user.displayName || friend.user.username} userId={friend.user.id} hasAvatar={friend.user.hasAvatar} /><span><strong>{friend.user.displayName || `@${friend.user.username}`}</strong><small>@{friend.user.username}</small></span><ChevronRight /></button>) : <p className="hint">Search for a username to start your private circle.</p>}</section>
     <section><h3>Private groups</h3><form className="inline-social-form" onSubmit={async (e) => { e.preventDefault(); if (!groupName.trim()) return; try { await api.createFriendGroup(token, groupName.trim()); setGroupName(''); await load() } catch (error) { onError(error) } }}><input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Family, close friends…" /><button className="secondary">Create</button></form>
-      {groups.map((group) => <details className="social-group" key={group.id}><summary>{group.name}<small>{group.members.length} members</small></summary>{friends.map((friend) => { const checked = group.members.some((member) => member.id === friend.user.id); return <label className="audience-choice" key={friend.user.id}><input type="checkbox" checked={checked} onChange={async () => { try { checked ? await api.removeGroupMember(token, group.id, friend.user.id) : await api.addGroupMember(token, group.id, friend.user.id); await load() } catch (e) { onError(e) } }} /><span>{friend.user.displayName || `@${friend.user.username}`}<small>@{friend.user.username}</small></span></label> })}</details>)}
+      {groups.map((group) => <details className="social-group" key={group.id}><summary>{group.name}<small>{group.members.length} members</small></summary><button className="text-button" onClick={async () => { try { setPins(await (pins.groupIDs.includes(group.id) ? api.unpin(token, 'group', group.id) : api.pin(token, 'group', group.id))) } catch (e) { onError(e) } }}><Pin /> {pins.groupIDs.includes(group.id) ? 'Unpin group' : 'Pin group'}</button>{friends.map((friend) => { const checked = group.members.some((member) => member.id === friend.user.id); return <label className="audience-choice" key={friend.user.id}><input type="checkbox" checked={checked} onChange={async () => { try { checked ? await api.removeGroupMember(token, group.id, friend.user.id) : await api.addGroupMember(token, group.id, friend.user.id); await load() } catch (e) { onError(e) } }} /><span>{friend.user.displayName || `@${friend.user.username}`}<small>@{friend.user.username}</small></span></label> })}</details>)}
     </section>
   </div></Modal>
 }
 
-function UserSearchModal({ token, close, onError, notify, openShare }: { token: string; close: () => void; onError: (e: unknown) => void; notify: (s: string) => void; openShare: (share: AccountSharedWishlist) => void }) {
-  const [query, setQuery] = useState(''), [results, setResults] = useState<SocialUser[]>([]), [friends, setFriends] = useState<Friendship[]>([]), [profile, setProfile] = useState<SocialUser | null>(null)
+function UserSearchModal({ token, initialPerson, close, onError, notify, openShare }: { token: string; initialPerson?: SocialUser; close: () => void; onError: (e: unknown) => void; notify: (s: string) => void; openShare: (share: AccountSharedWishlist) => void }) {
+  const [query, setQuery] = useState(''), [results, setResults] = useState<SocialUser[]>([]), [friends, setFriends] = useState<Friendship[]>([]), [profile, setProfile] = useState<SocialUser | null>(initialPerson || null)
   const loadRelationships = useCallback(async () => { try { setFriends(await api.friends(token)) } catch (e) { onError(e) } }, [token, onError])
   useEffect(() => { void loadRelationships() }, [loadRelationships])
   useEffect(() => { const timer = window.setTimeout(() => { if (query.trim().length >= 2) api.searchUsers(token, query.trim()).then(setResults).catch(onError); else setResults([]) }, 250); return () => window.clearTimeout(timer) }, [query, token, onError])
@@ -357,21 +372,24 @@ function UserSearchModal({ token, close, onError, notify, openShare }: { token: 
 }
 
 function FriendProfileModal({ token, friendship, person, close, removed, added, openShare, onError }: { token: string; friendship?: Friendship; person: SocialUser; close: () => void; removed: () => Promise<void>; added: () => Promise<void>; openShare: (share: AccountSharedWishlist) => void; onError: (e: unknown) => void }) {
-  const [profile, setProfile] = useState<FriendProfile | null>(null), [opening, setOpening] = useState<string | null>(null), [requested, setRequested] = useState(false)
-  useEffect(() => { Promise.all([api.friendProfile(token, person.id), api.friendRequests(token)]).then(([p, requests]) => { setProfile(p); setRequested(requests.some((item) => item.user.id === person.id && item.direction === 'outgoing')) }).catch(onError) }, [token, person.id, onError])
+  const [profile, setProfile] = useState<FriendProfile | null>(null), [opening, setOpening] = useState<string | null>(null), [requested, setRequested] = useState(false), [pinned, setPinned] = useState(false)
+  useEffect(() => { Promise.all([api.friendProfile(token, person.id), api.friendRequests(token), api.pins(token)]).then(([p, requests, pins]) => { setProfile(p); setRequested(requests.some((item) => item.user.id === person.id && item.direction === 'outgoing')); setPinned(pins.userIDs.includes(person.id)) }).catch(onError) }, [token, person.id, onError])
   async function openPublic(wishlistID: string) { setOpening(wishlistID); try { openShare(await api.openPublicWishlist(token, wishlistID)) } catch (e) { onError(e) } finally { setOpening(null) } }
   const saved = (item: ProfileWishlist): AccountSharedWishlist => ({ id: item.accountShareID!, wishlistID: item.wishlistID, title: item.title, sharedByName: profile?.user.displayName || `@${profile?.user.username || person.username}` })
   return <Modal close={close} size="modal-wide"><ModalHeader eyebrow={`@${person.username}`} title={person.displayName || `@${person.username}`} close={close} />{!profile ? <FullPageLoader embedded /> : <div className="social-stack"><div className="friend-profile-heading"><Avatar name={person.displayName || person.username} userId={person.id} hasAvatar={person.hasAvatar} /><p>Only public wishlists and lists shared specifically with you appear here.</p></div>
     <section><h3>Public wishlists</h3>{profile.publicWishlists.length ? profile.publicWishlists.map((item) => <button className="profile-list-row" key={item.wishlistID} disabled={opening === item.wishlistID} onClick={() => void openPublic(item.wishlistID)}><Gift /><span><strong>{item.title}</strong><small>Public</small></span><ChevronRight /></button>) : <p className="hint">No public wishlists.</p>}</section>
     <section><h3>Shared with you</h3>{profile.sharedWishlists.length ? profile.sharedWishlists.map((item) => <button className="profile-list-row" key={item.wishlistID} onClick={() => openShare(saved(item))}><Users /><span><strong>{item.title}</strong><small>Shared privately with you</small></span><ChevronRight /></button>) : <p className="hint">No private lists have been shared with you.</p>}</section>
-    {friendship && <div className="modal-actions"><button className="secondary danger-text" onClick={async () => { if (!window.confirm(`Are you sure you want to remove ${person.displayName || `@${person.username}`} as a friend? This cannot be undone.`)) return; try { await api.removeFriendship(token, friendship.id); await removed() } catch (e) { onError(e) } }}><Trash2 /> Remove friend</button></div>}
+    {friendship && <div className="modal-actions spread"><button className="secondary danger-text" onClick={async () => { if (!window.confirm(`Are you sure you want to remove ${person.displayName || `@${person.username}`} as a friend? This cannot be undone.`)) return; try { await api.removeFriendship(token, friendship.id); await removed() } catch (e) { onError(e) } }}><Trash2 /> Remove friend</button><button className="secondary" onClick={async () => { try { await (pinned ? api.unpin(token, 'user', person.id) : api.pin(token, 'user', person.id)); setPinned(!pinned) } catch (e) { onError(e) } }}><Pin /> {pinned ? 'Unpin' : 'Pin person'}</button></div>}
     {!friendship && <div className="modal-actions"><button className="primary" disabled={requested} onClick={async () => { try { await api.requestFriend(token, person.id); setRequested(true); await added() } catch (e) { onError(e) } }}>{requested ? 'Friend request sent' : 'Add friend'}</button></div>}
   </div>}</Modal>
 }
 
 function ActivityModal({ token, items, changed, close, onError }: { token: string; items: ActivityItem[]; changed: (items: ActivityItem[]) => void; close: () => void; onError: (e: unknown) => void }) {
   useEffect(() => { if (!items.some((item) => !item.readAt)) return; api.readAllActivity(token).then(() => changed(items.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })))).catch(onError) }, [])
-  return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="What’s new" title="Activity" close={close} /><div className="activity-list">{items.length ? items.map((item) => <article className={`activity-item ${item.readAt ? '' : 'unread'}`} key={item.id}><span className="activity-icon">{item.kind === 'friend_request' || item.kind === 'friend_accepted' ? <Users /> : <Gift />}</span><div><strong>{item.title}</strong><p>{item.message}</p>{item.createdAt && <small>{new Date(item.createdAt).toLocaleString()}</small>}</div></article>) : <EmptyState icon={<Bell />} title="You’re all caught up" text="Friend requests and shared-list updates will appear here." />}</div></Modal>
+  async function remove(id: string) { try { await api.deleteActivity(token, id); changed(items.filter((item) => item.id !== id)) } catch (e) { onError(e) } }
+  async function resolve(item: ActivityItem, accept: boolean) { try { const requests = await api.friendRequests(token); const request = requests.find((candidate) => candidate.direction === 'incoming' && candidate.user.id === item.actorID); if (request) { if (accept) await api.acceptFriend(token, request.id); else await api.removeFriendship(token, request.id) } await remove(item.id) } catch (e) { onError(e) } }
+  async function clearAll() { try { await api.clearActivity(token); changed([]) } catch (e) { onError(e) } }
+  return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="What’s new" title="Activity" close={close} /><div className="activity-list">{items.length ? <>{items.map((item) => <article className={`activity-item ${item.readAt ? '' : 'unread'}`} key={item.id}><span className="activity-icon">{item.kind === 'friend_request' || item.kind === 'friend_accepted' ? <Users /> : <Gift />}</span><div><strong>{item.title}</strong><p>{item.message}</p>{item.createdAt && <small>{new Date(item.createdAt).toLocaleString()}</small>}{item.kind === 'friend_request' && <div className="activity-actions"><button className="primary" onClick={() => void resolve(item, true)}>Accept</button><button className="secondary danger-text" onClick={() => void resolve(item, false)}>Decline</button></div>}</div><button className="icon-button" aria-label="Clear activity" onClick={() => void remove(item.id)}><X /></button></article>)}<div className="modal-actions"><button className="secondary danger-text" onClick={() => void clearAll()}><Trash2 /> Clear all</button></div></> : <EmptyState icon={<Bell />} title="You’re all caught up" text="Friend requests and shared-list updates will appear here." />}</div></Modal>
 }
 
 function SocialRow({ person, action }: { person: SocialUser; action: ReactNode }) { return <div className="social-row"><Avatar name={person.displayName || person.username} userId={person.id} hasAvatar={person.hasAvatar} /><span><strong>{person.displayName || `@${person.username}`}</strong><small>@{person.username}</small></span>{action}</div> }
