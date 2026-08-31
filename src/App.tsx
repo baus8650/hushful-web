@@ -290,10 +290,10 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
         <button className="nav-home" onClick={() => { setPeopleSearchOpen(true); setMobileNav(false) }}><User /> Find people</button>
         <button className="nav-home" onClick={() => { setActivityOpen(true); setMobileNav(false) }}><Bell /> Activity {activity.some((item) => !item.readAt) && <span className="notification-badge">{activity.filter((item) => !item.readAt).length}</span>}</button>
         <NavGroup title="My wishlists" action={<button aria-label="New wishlist" onClick={() => setCreateOpen(true)}><Plus /></button>}>
-          {wishlists.filter((wishlist) => wishlist.isPrimaryOwner !== false).map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
+          {wishlists.filter((wishlist) => wishlist.isCollaborative !== true).map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
         </NavGroup>
-        {wishlists.some((wishlist) => wishlist.isPrimaryOwner === false) && <NavGroup title="My collaborations" action={<Users />}>
-          {wishlists.filter((wishlist) => wishlist.isPrimaryOwner === false).map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot shared-dot" />{wishlist.title}</button>)}
+        {wishlists.some((wishlist) => wishlist.isCollaborative === true) && <NavGroup title="My collaborations" action={<Users />}>
+          {wishlists.filter((wishlist) => wishlist.isCollaborative === true).map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot shared-dot" />{wishlist.title}</button>)}
         </NavGroup>}
         <NavGroup title="Pinned lists" action={<Pin />}>
           {wishlists.filter((wishlist) => pins.wishlistIDs.includes(wishlist.id)).map((wishlist) => <button key={wishlist.id} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
@@ -325,8 +325,8 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
 }
 
 function Home({ user, wishlists, shared, openWishlist, openShared, newWishlist, openShare }: { user: CurrentUser; wishlists: Wishlist[]; shared: SharedWishlist[]; openWishlist: (w: Wishlist) => void; openShared: (s: SharedWishlist) => void; newWishlist: () => void; openShare: () => void }) {
-  const owned = wishlists.filter((wishlist) => wishlist.isPrimaryOwner !== false)
-  const collaborations = wishlists.filter((wishlist) => wishlist.isPrimaryOwner === false)
+  const owned = wishlists.filter((wishlist) => wishlist.isCollaborative !== true)
+  const collaborations = wishlists.filter((wishlist) => wishlist.isCollaborative === true)
   return <div className="page home-page">
     <header className="page-heading"><div><p className="eyebrow">Your quiet corner</p><h1>Good {greeting()}, {firstName(user.displayName)}.</h1><p>Gather every wish. Keep every gift a surprise.</p></div><button className="primary" onClick={newWishlist}><Plus /> New wishlist</button></header>
     {wishlists.length === 0 && shared.length === 0 ? <EmptyState icon={<Gift />} title="A little space for things you love" text="Create your first wishlist, then share it privately with friends and family." action={<button className="primary" onClick={newWishlist}><Plus /> Create a wishlist</button>} /> : <>
