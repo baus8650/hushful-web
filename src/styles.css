@@ -90,7 +90,11 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .page-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:30px; margin-bottom:56px; }
 .page-heading>div:first-child { max-width:760px; }
 .page-heading p:not(.eyebrow) { color:var(--muted); margin:0; }
-.heading-actions { display:flex; gap:10px; flex:none; }
+.heading-actions { display:flex; gap:10px; flex:none; flex-wrap:wrap; min-width:0; }
+.detail-page { max-width:1080px; }
+.detail-page .page-heading { align-items:flex-start; flex-wrap:wrap; }
+.detail-page .page-heading>div:first-child { flex:1 1 300px; min-width:0; }
+.detail-page .page-heading>.heading-actions { flex:1 1 500px; justify-content:flex-end; }
 .save-shared-panel { display:flex; align-items:center; justify-content:space-between; gap:24px; margin:-30px 0 34px; padding:20px 22px; border:1px solid var(--line); border-radius:18px; background:var(--paper); box-shadow:0 10px 30px rgba(58,45,65,.06); }
 .save-shared-panel>div { display:grid; gap:4px; }
 .save-shared-panel span { color:var(--muted); font-size:.92rem; }
