@@ -157,7 +157,7 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .image-upload input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
 .metrics-panel { border:1px solid var(--line); border-radius:16px; padding:16px; background:var(--cream); display:grid; gap:14px; }
 .metrics-panel>div:first-child strong,.metrics-panel>div:first-child small { display:block; }.metrics-panel>div:first-child small{color:var(--muted);margin-top:3px}
-.metric-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.metric-grid span{padding:11px;background:var(--paper);border-radius:10px}.metric-grid strong,.metric-grid small{display:block}.metric-grid strong{font-size:1.2rem}.metric-grid small{color:var(--muted);margin-top:2px}
+.metric-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }.metric-grid span{padding:11px;background:var(--paper);border-radius:10px}.metric-grid strong,.metric-grid small{display:block}.metric-grid strong{font-size:1.2rem}.metric-grid small{color:var(--muted);margin-top:2px}
 .metric-paths { display:grid; gap:5px; }.metric-paths span{display:flex;justify-content:space-between;gap:12px}.metric-paths small{color:var(--muted)}
 
 .modal-backdrop { position:fixed; inset:0; background:rgba(33,35,30,.38); backdrop-filter:blur(5px); z-index:50; display:grid; place-items:center; padding:20px; animation:fade .16s ease; }

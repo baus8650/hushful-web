@@ -51,7 +51,7 @@ export const api = {
   uploadItemImage: (token: string, wishlistId: string, itemId: string, file: File) => itemImageRequest(token, wishlistId, itemId, 'PUT', file),
   removeItemImage: (token: string, wishlistId: string, itemId: string) => itemImageRequest(token, wishlistId, itemId, 'DELETE'),
   trackPageView: (visitorID: string, path: string, signedIn: boolean) => request<void>('/v1/metrics/events', { method: 'POST', body: JSON.stringify({ visitorID, path, signedIn }) }),
-  metricsSummary: (token: string, days = 30) => request<{ days: number; views: number; visitors: number; signedInViews: number; daily: Array<{ date: string; views: number; visitors: number }>; topPaths: Array<{ path: string; views: number }> }>(`/v1/metrics/summary?days=${days}`, { headers: auth(token) }),
+  metricsSummary: (token: string, days = 30) => request<{ days: number; views: number; visitors: number; signedInViews: number; totalAccounts: number; newAccounts: number; daily: Array<{ date: string; views: number; visitors: number; signups: number }>; topPaths: Array<{ path: string; views: number }> }>(`/v1/metrics/summary?days=${days}`, { headers: auth(token) }),
   activity: (token: string) => request<ActivityItem[]>('/v1/activity', { headers: auth(token) }),
   readActivity: (token: string, id: string) => request<ActivityItem>(`/v1/activity/${id}/read`, { method: 'POST', headers: auth(token) }),
   readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
