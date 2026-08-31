@@ -8,14 +8,14 @@ export interface ActivityItem { id: string; kind: string; title: string; message
 export interface Wishlist {
   id: string; title: string; visibility: 'private' | 'public'; collaborationMode?: 'our_wishlist' | 'gift_planning';
   isPrimaryOwner?: boolean; isCollaborative?: boolean; occasionDate?: string; reminderEnabled?: boolean;
-  icon?: string; colorTheme?: string; isArchived?: boolean
+  icon?: string; colorTheme?: string; isArchived?: boolean; description?: string; customColorHex?: string; reminderOffsets?: number[]
 }
 export interface WishlistCollaborator { id: string; displayName?: string; username?: string; isPrimaryOwner: boolean }
 export interface WishlistCollaboration { mode: 'our_wishlist' | 'gift_planning'; collaborators: WishlistCollaborator[] }
 export interface WishlistSettings {
   visibility: 'private' | 'public'; showPurchaserNames: boolean; allowMultiplePurchases: boolean;
   allowNotes: boolean; autoLockOnPurchase: boolean; occasionDate?: string; reminderEnabled?: boolean;
-  icon?: string; colorTheme?: string; isArchived?: boolean
+  icon?: string; colorTheme?: string; isArchived?: boolean; description?: string; customColorHex?: string; reminderOffsets?: number[]
 }
 export interface ProfileWishlist { wishlistID: string; title: string; accountShareID?: string }
 export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; sharedWishlists: ProfileWishlist[] }
