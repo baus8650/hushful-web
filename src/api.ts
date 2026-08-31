@@ -30,6 +30,11 @@ async function avatarRequest(token: string, method: 'PUT' | 'DELETE', file?: Fil
   return response.json() as Promise<CurrentUser>
 }
 
+async function itemImageRequest(token: string, wishlistId: string, itemId: string, method: 'PUT' | 'DELETE', file?: File): Promise<void> {
+  const response = await fetch(`${API_URL}/v1/wishlists/${wishlistId}/items/${itemId}/image`, { method, headers: { ...auth(token), ...(file ? { 'Content-Type': file.type } : {}) }, body: file })
+  if (!response.ok) { const body = await response.text(); let message = body || `Request failed (${response.status})`; try { message = JSON.parse(body).reason ?? message } catch { /* plain response */ }; throw new ApiError(response.status, message) }
+}
+
 export const api = {
   register: (email: string, password: string, displayName: string) => request<TokenResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
   login: (email: string, password: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
@@ -40,8 +45,13 @@ export const api = {
   updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
   deleteAccount: (token: string) => request<void>('/v1/me', { method: 'DELETE', headers: auth(token) }),
   avatarURL: (userId: string) => `${API_URL}/v1/users/${userId}/avatar`,
+  itemImageURL: (itemId: string, version?: string) => `${API_URL}/v1/items/${itemId}/image${version ? `?v=${encodeURIComponent(version)}` : ''}`,
   uploadAvatar: (token: string, file: File) => avatarRequest(token, 'PUT', file),
   removeAvatar: (token: string) => avatarRequest(token, 'DELETE'),
+  uploadItemImage: (token: string, wishlistId: string, itemId: string, file: File) => itemImageRequest(token, wishlistId, itemId, 'PUT', file),
+  removeItemImage: (token: string, wishlistId: string, itemId: string) => itemImageRequest(token, wishlistId, itemId, 'DELETE'),
+  trackPageView: (visitorID: string, path: string, signedIn: boolean) => request<void>('/v1/metrics/events', { method: 'POST', body: JSON.stringify({ visitorID, path, signedIn }) }),
+  metricsSummary: (token: string, days = 30) => request<{ days: number; views: number; visitors: number; signedInViews: number; daily: Array<{ date: string; views: number; visitors: number }>; topPaths: Array<{ path: string; views: number }> }>(`/v1/metrics/summary?days=${days}`, { headers: auth(token) }),
   activity: (token: string) => request<ActivityItem[]>('/v1/activity', { headers: auth(token) }),
   readActivity: (token: string, id: string) => request<ActivityItem>(`/v1/activity/${id}/read`, { method: 'POST', headers: auth(token) }),
   readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
