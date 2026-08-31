@@ -5,7 +5,9 @@ export interface Friendship { id: string; user: SocialUser; direction: 'incoming
 export interface FriendGroup { id: string; name: string; members: SocialUser[] }
 export interface WishlistAudience { userIDs: string[]; groupIDs: string[] }
 export interface ActivityItem { id: string; kind: string; title: string; message: string; actorID?: string; wishlistID?: string; readAt?: string; createdAt?: string }
-export interface Wishlist { id: string; title: string; visibility: 'private' | 'public' }
+export interface Wishlist { id: string; title: string; visibility: 'private' | 'public'; collaborationMode?: 'our_wishlist' | 'gift_planning'; isPrimaryOwner?: boolean }
+export interface WishlistCollaborator { id: string; displayName?: string; username?: string; isPrimaryOwner: boolean }
+export interface WishlistCollaboration { mode: 'our_wishlist' | 'gift_planning'; collaborators: WishlistCollaborator[] }
 export interface WishlistSettings { visibility: 'private' | 'public'; showPurchaserNames: boolean; allowMultiplePurchases: boolean; allowNotes: boolean; autoLockOnPurchase: boolean }
 export interface ProfileWishlist { wishlistID: string; title: string; accountShareID?: string }
 export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; sharedWishlists: ProfileWishlist[] }

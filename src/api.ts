@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistCollaboration, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -67,6 +67,8 @@ export const api = {
   removeGroupMember: (token: string, groupId: string, userId: string) => request<FriendGroup>(`/v1/friend-groups/${groupId}/members/${userId}`, { method: 'DELETE', headers: auth(token) }),
   wishlistAudience: (token: string, wishlistId: string) => request<WishlistAudience>(`/v1/wishlists/${wishlistId}/audience`, { headers: auth(token) }),
   updateWishlistAudience: (token: string, wishlistId: string, audience: WishlistAudience) => request<WishlistAudience>(`/v1/wishlists/${wishlistId}/audience`, { method: 'PUT', headers: auth(token), body: JSON.stringify(audience) }),
+  wishlistCollaboration: (token: string, wishlistId: string) => request<WishlistCollaboration>(`/v1/wishlists/${wishlistId}/collaborators`, { headers: auth(token) }),
+  updateWishlistCollaboration: (token: string, wishlistId: string, mode: 'our_wishlist' | 'gift_planning', userIDs: string[]) => request<WishlistCollaboration>(`/v1/wishlists/${wishlistId}/collaborators`, { method: 'PUT', headers: auth(token), body: JSON.stringify({ mode, userIDs }) }),
   wishlists: (token: string) => request<Wishlist[]>('/v1/wishlists', { headers: auth(token) }),
   wishlistSettings: (token: string, wishlistId: string) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { headers: auth(token) }),
   updateWishlistSettings: (token: string, wishlistId: string, settings: Partial<WishlistSettings>) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { method: 'PATCH', headers: auth(token), body: JSON.stringify(settings) }),
