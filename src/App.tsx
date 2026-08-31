@@ -290,8 +290,11 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
         <button className="nav-home" onClick={() => { setPeopleSearchOpen(true); setMobileNav(false) }}><User /> Find people</button>
         <button className="nav-home" onClick={() => { setActivityOpen(true); setMobileNav(false) }}><Bell /> Activity {activity.some((item) => !item.readAt) && <span className="notification-badge">{activity.filter((item) => !item.readAt).length}</span>}</button>
         <NavGroup title="My wishlists" action={<button aria-label="New wishlist" onClick={() => setCreateOpen(true)}><Plus /></button>}>
-          {wishlists.map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
+          {wishlists.filter((wishlist) => wishlist.isPrimaryOwner !== false).map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
         </NavGroup>
+        {wishlists.some((wishlist) => wishlist.isPrimaryOwner === false) && <NavGroup title="My collaborations" action={<Users />}>
+          {wishlists.filter((wishlist) => wishlist.isPrimaryOwner === false).map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot shared-dot" />{wishlist.title}</button>)}
+        </NavGroup>}
         <NavGroup title="Pinned lists" action={<Pin />}>
           {wishlists.filter((wishlist) => pins.wishlistIDs.includes(wishlist.id)).map((wishlist) => <button key={wishlist.id} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
           {shared.filter((share) => share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)).map((share) => <button key={share.accountShareID || share.shareToken} onClick={() => select({ kind: 'shared', share })}><span className="nav-dot shared-dot" />{share.title}</button>)}
@@ -322,12 +325,15 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
 }
 
 function Home({ user, wishlists, shared, openWishlist, openShared, newWishlist, openShare }: { user: CurrentUser; wishlists: Wishlist[]; shared: SharedWishlist[]; openWishlist: (w: Wishlist) => void; openShared: (s: SharedWishlist) => void; newWishlist: () => void; openShare: () => void }) {
+  const owned = wishlists.filter((wishlist) => wishlist.isPrimaryOwner !== false)
+  const collaborations = wishlists.filter((wishlist) => wishlist.isPrimaryOwner === false)
   return <div className="page home-page">
     <header className="page-heading"><div><p className="eyebrow">Your quiet corner</p><h1>Good {greeting()}, {firstName(user.displayName)}.</h1><p>Gather every wish. Keep every gift a surprise.</p></div><button className="primary" onClick={newWishlist}><Plus /> New wishlist</button></header>
     {wishlists.length === 0 && shared.length === 0 ? <EmptyState icon={<Gift />} title="A little space for things you love" text="Create your first wishlist, then share it privately with friends and family." action={<button className="primary" onClick={newWishlist}><Plus /> Create a wishlist</button>} /> : <>
-      <section><SectionTitle title="My wishlists" subtitle={`${wishlists.length} ${wishlists.length === 1 ? 'collection' : 'collections'}`} action={<button className="text-button" onClick={newWishlist}>Add new <Plus /></button>} />
-        <div className="card-grid">{wishlists.map((wishlist, index) => <button className="wishlist-card" key={wishlist.id} onClick={() => openWishlist(wishlist)}><div className={`card-art art-${index % 4}`}><Gift /></div><div><span className="card-kicker">Wishlist</span><h3>{wishlist.title}</h3><p>Open collection</p></div><ChevronRight /></button>)}</div>
+      <section><SectionTitle title="My wishlists" subtitle={`${owned.length} ${owned.length === 1 ? 'collection' : 'collections'}`} action={<button className="text-button" onClick={newWishlist}>Add new <Plus /></button>} />
+        <div className="card-grid">{owned.map((wishlist, index) => <button className="wishlist-card" key={wishlist.id} onClick={() => openWishlist(wishlist)}><div className={`card-art art-${index % 4}`}><Gift /></div><div><span className="card-kicker">Wishlist</span><h3>{wishlist.title}</h3><p>Open collection</p></div><ChevronRight /></button>)}</div>
       </section>
+      {collaborations.length > 0 && <section><SectionTitle title="My collaborations" subtitle={`${collaborations.length} co-owned ${collaborations.length === 1 ? 'list' : 'lists'}`} action={<Users />} /><div className="card-grid">{collaborations.map((wishlist, index) => <button className="wishlist-card" key={wishlist.id} onClick={() => openWishlist(wishlist)}><div className={`card-art art-${(index + 1) % 4}`}><Users /></div><div><span className="card-kicker">Collaborative list</span><h3>{wishlist.title}</h3><p>Open collaboration</p></div><ChevronRight /></button>)}</div></section>}
       <section><SectionTitle title="Shared with me" subtitle="Gift ideas from your favorite people" action={<button className="text-button" onClick={openShare}>Open a link <Link2 /></button>} />
         {shared.length ? <div className="shared-row">{[...shared].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })).map((share) => <button className="shared-card" key={share.accountShareID || share.shareToken} onClick={() => openShared(share)}><Avatar name={share.sharedByName || 'Someone'} /><span><strong>{share.title}</strong><small>From {share.sharedByName || 'Someone'}</small></span><ChevronRight /></button>)}</div> : <button className="share-placeholder" onClick={openShare}><Link2 /><span><strong>Have a Hushful link?</strong><small>Paste it here to keep the list close.</small></span></button>}
       </section>
