@@ -340,8 +340,9 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
 }
 
 function Home({ user, wishlists, shared, openWishlist, openShared, newWishlist, openShare }: { user: CurrentUser; wishlists: Wishlist[]; shared: SharedWishlist[]; openWishlist: (w: Wishlist) => void; openShared: (s: SharedWishlist) => void; newWishlist: () => void; openShare: () => void }) {
-  const owned = wishlists.filter((wishlist) => wishlist.isCollaborative !== true)
-  const collaborations = wishlists.filter((wishlist) => wishlist.isCollaborative === true)
+  const owned = wishlists.filter((wishlist) => wishlist.isCollaborative !== true && !wishlist.isArchived)
+  const collaborations = wishlists.filter((wishlist) => wishlist.isCollaborative === true && !wishlist.isArchived)
+  const archived = wishlists.filter((wishlist) => wishlist.isArchived)
   return <div className="page home-page">
     <header className="page-heading"><div><p className="eyebrow">Your quiet corner</p><h1>Good {greeting()}, {firstName(user.displayName)}.</h1><p>Gather every wish. Keep every gift a surprise.</p></div><button className="primary" onClick={newWishlist}><Plus /> New wishlist</button></header>
     {wishlists.length === 0 && shared.length === 0 ? <EmptyState icon={<Gift />} title="A little space for things you love" text="Create your first wishlist, then share it privately with friends and family." action={<button className="primary" onClick={newWishlist}><Plus /> Create a wishlist</button>} /> : <>
@@ -349,6 +350,7 @@ function Home({ user, wishlists, shared, openWishlist, openShared, newWishlist, 
         <div className="card-grid">{owned.map((wishlist, index) => <button className="wishlist-card" key={wishlist.id} onClick={() => openWishlist(wishlist)}><div className={`card-art art-${index % 4}`}><Gift /></div><div><span className="card-kicker">Wishlist</span><h3>{wishlist.title}</h3><p>Open collection</p></div><ChevronRight /></button>)}</div>
       </section>
       {collaborations.length > 0 && <section><SectionTitle title="My collaborations" subtitle={`${collaborations.length} co-owned ${collaborations.length === 1 ? 'list' : 'lists'}`} action={<Users />} /><div className="card-grid">{collaborations.map((wishlist, index) => <button className="wishlist-card" key={wishlist.id} onClick={() => openWishlist(wishlist)}><div className={`card-art art-${(index + 1) % 4}`}><Users /></div><div><span className="card-kicker">Collaborative list</span><h3>{wishlist.title}</h3><p>Open collaboration</p></div><ChevronRight /></button>)}</div></section>}
+      {archived.length > 0 && <section><SectionTitle title="Archived" subtitle={`${archived.length} saved ${archived.length === 1 ? 'list' : 'lists'}`} action={<Gift />} /><div className="card-grid">{archived.map((wishlist, index) => <button className="wishlist-card" key={wishlist.id} onClick={() => openWishlist(wishlist)}><div className={`card-art art-${(index + 2) % 4}`}><Gift /></div><div><span className="card-kicker">Archived wishlist</span><h3>{wishlist.title}</h3><p>View or restore</p></div><ChevronRight /></button>)}</div></section>}
       <section><SectionTitle title="Shared with me" subtitle="Gift ideas from your favorite people" action={<button className="text-button" onClick={openShare}>Open a link <Link2 /></button>} />
         {shared.length ? <div className="shared-row">{[...shared].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })).map((share) => <button className="shared-card" key={share.accountShareID || share.shareToken} onClick={() => openShared(share)}><Avatar name={share.sharedByName || 'Someone'} /><span><strong>{share.title}</strong><small>From {share.sharedByName || 'Someone'}</small></span><ChevronRight /></button>)}</div> : <button className="share-placeholder" onClick={openShare}><Link2 /><span><strong>Have a Hushful link?</strong><small>Paste it here to keep the list close.</small></span></button>}
       </section>
