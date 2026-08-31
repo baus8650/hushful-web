@@ -71,9 +71,11 @@ export const api = {
   wishlistSettings: (token: string, wishlistId: string) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { headers: auth(token) }),
   updateWishlistSettings: (token: string, wishlistId: string, settings: Partial<WishlistSettings>) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { method: 'PATCH', headers: auth(token), body: JSON.stringify(settings) }),
   createWishlist: (token: string, title: string, visibility: 'public' | 'private') => request<Wishlist>('/v1/wishlists', { method: 'POST', headers: auth(token), body: JSON.stringify({ title, visibility }) }),
+  renameWishlist: (token: string, id: string, title: string) => request<Wishlist>(`/v1/wishlists/${id}`, { method: 'PATCH', headers: auth(token), body: JSON.stringify({ title }) }),
   items: (token: string, id: string) => request<WishlistItem[]>(`/v1/wishlists/${id}/items`, { headers: auth(token) }),
-  createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
-  async updateItem(token: string, wishlistId: string, itemId: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number }) {
+  createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[] }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
+  itemLinks: (token: string, wishlistId: string, itemId: string) => request<{ wishlistIDs: string[] }>(`/v1/wishlists/${wishlistId}/items/${itemId}/links`, { headers: auth(token) }),
+  async updateItem(token: string, wishlistId: string, itemId: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[] }) {
     const path = `/v1/wishlists/${wishlistId}/items/${itemId}`
     const options = { headers: auth(token), body: JSON.stringify(item) }
     try {
