@@ -128,6 +128,8 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .items-grid { display:flex; flex-direction:column; gap:12px; }
 .item-card { border:1px solid var(--line); background:var(--paper); border-radius:17px; padding:20px; display:grid; grid-template-columns:55px 1fr 42px; gap:17px; align-items:start; transition:.2s; }
 .item-card:hover { border-color:#d2cec3; box-shadow:0 7px 20px rgba(50,52,43,.05); }
+.cash-fund-card { border-color:color-mix(in srgb, var(--sage) 35%, var(--line)); }
+.contribution-link { width:max-content; margin:8px 0; text-decoration:none; }
 .item-icon { width:55px; height:55px; display:grid; place-items:center; border-radius:14px; background:#e8ddd3; color:#8f6e5d; }
 .item-icon svg { width:25px; height:25px; }
 .item-artwork { position:relative; overflow:hidden; }

@@ -9,6 +9,7 @@ export interface Wishlist {
   id: string; title: string; visibility: 'private' | 'public'; collaborationMode?: 'our_wishlist' | 'gift_planning';
   isPrimaryOwner?: boolean; isCollaborative?: boolean; occasionDate?: string; reminderEnabled?: boolean;
   icon?: string; colorTheme?: string; isArchived?: boolean; description?: string; customColorHex?: string; reminderDate?: string
+  proAccess?: boolean
 }
 export interface WishlistCollaborator { id: string; displayName?: string; username?: string; isPrimaryOwner: boolean }
 export interface WishlistCollaboration { mode: 'our_wishlist' | 'gift_planning'; collaborators: WishlistCollaborator[] }
@@ -22,6 +23,7 @@ export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishl
 export interface Pins { wishlistIDs: string[]; userIDs: string[]; groupIDs: string[] }
 export interface WishlistItem {
   id: string; title: string; url?: string; price?: number; ownerNote?: string; quantity?: number;
+  itemType?: 'wish' | 'cash_fund'; contributionGoal?: number;
   createdAt: string; updatedAt: string; wishlist: { id: string }
 }
 export interface SharedWishlist { shareToken: string; title: string; sharedByName?: string; accountShareID?: string; wishlistID?: string }

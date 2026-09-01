@@ -85,9 +85,9 @@ export const api = {
   createWishlist: (token: string, title: string, visibility: 'public' | 'private') => request<Wishlist>('/v1/wishlists', { method: 'POST', headers: auth(token), body: JSON.stringify({ title, visibility }) }),
   renameWishlist: (token: string, id: string, title: string) => request<Wishlist>(`/v1/wishlists/${id}`, { method: 'PATCH', headers: auth(token), body: JSON.stringify({ title }) }),
   items: (token: string, id: string) => request<WishlistItem[]>(`/v1/wishlists/${id}/items`, { headers: auth(token) }),
-  createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[] }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
+  createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[]; itemType?: 'wish' | 'cash_fund'; contributionGoal?: number }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
   itemLinks: (token: string, wishlistId: string, itemId: string) => request<{ wishlistIDs: string[] }>(`/v1/wishlists/${wishlistId}/items/${itemId}/links`, { headers: auth(token) }),
-  async updateItem(token: string, wishlistId: string, itemId: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[] }) {
+  async updateItem(token: string, wishlistId: string, itemId: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[]; itemType?: 'wish' | 'cash_fund'; contributionGoal?: number }) {
     const path = `/v1/wishlists/${wishlistId}/items/${itemId}`
     const options = { headers: auth(token), body: JSON.stringify(item) }
     try {
