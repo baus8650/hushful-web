@@ -3,6 +3,7 @@ export interface CurrentUser { id: string; email: string; displayName?: string; 
 export interface SocialUser { id: string; username: string; displayName?: string; hasAvatar: boolean }
 export interface Friendship { id: string; user: SocialUser; direction: 'incoming' | 'outgoing'; status: 'pending' | 'accepted' }
 export interface FriendGroup { id: string; name: string; members: SocialUser[] }
+export interface RecurringOccasion { id?: string; name: string; eventMonth: number; eventDay: number; reminderMonth: number; reminderDay: number; icon: string; colorHex: string; lastCreatedYear?: number }
 export interface WishlistAudience { userIDs: string[]; groupIDs: string[] }
 export interface ActivityItem { id: string; kind: string; title: string; message: string; actorID?: string; wishlistID?: string; readAt?: string; createdAt?: string }
 export interface Wishlist {

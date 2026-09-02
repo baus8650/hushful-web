@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistCollaboration, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistCollaboration, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -57,6 +57,10 @@ export const api = {
   readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
   deleteActivity: (token: string, id: string) => request<void>(`/v1/activity/${id}`, { method: 'DELETE', headers: auth(token) }),
   clearActivity: (token: string) => request<void>('/v1/activity', { method: 'DELETE', headers: auth(token) }),
+  occasions: (token: string) => request<RecurringOccasion[]>('/v1/recurring-occasions', { headers: auth(token) }),
+  createOccasion: (token: string, value: RecurringOccasion) => request<RecurringOccasion>('/v1/recurring-occasions', { method: 'POST', headers: auth(token), body: JSON.stringify(value) }),
+  updateOccasion: (token: string, value: RecurringOccasion) => request<RecurringOccasion>(`/v1/recurring-occasions/${value.id}`, { method: 'PUT', headers: auth(token), body: JSON.stringify(value) }),
+  deleteOccasion: (token: string, id: string) => request<void>(`/v1/recurring-occasions/${id}`, { method: 'DELETE', headers: auth(token) }),
   pins: (token: string) => request<Pins>('/v1/pins', { headers: auth(token) }),
   pin: (token: string, type: 'wishlist' | 'user' | 'group', id: string) => request<Pins>(`/v1/pins/${type}/${id}`, { method: 'PUT', headers: auth(token) }),
   unpin: (token: string, type: 'wishlist' | 'user' | 'group', id: string) => request<Pins>(`/v1/pins/${type}/${id}`, { method: 'DELETE', headers: auth(token) }),
