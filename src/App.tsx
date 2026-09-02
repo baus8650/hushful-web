@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { Banknote, Bell, CalendarDays, Check, ChevronRight, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, Moon, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, Sparkles, Sun, Trash2, User, Users, X } from 'lucide-react'
+import { Banknote, Bell, CalendarDays, Check, ChevronRight, CircleAlert, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, MessageCircle, Moon, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, Sparkles, Sun, Trash2, User, Users, X } from 'lucide-react'
 import { api, ApiError } from './api'
 import { authStorage, shareStorage } from './storage'
-import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ProfileWishlist, RecurringOccasion, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistItem } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ProfileWishlist, RecurringOccasion, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistDiscussionComment, WishlistItem } from './types'
 import { LegalPage, PublicFooter, legalRoute } from './LegalPages'
 
 type View = { kind: 'home' } | { kind: 'wishlist'; wishlist: Wishlist } | { kind: 'shared'; share: SharedWishlist }
@@ -21,7 +21,8 @@ export default function App() {
   const [token, setToken] = useState<string | null>(authStorage.get())
   const [user, setUser] = useState<CurrentUser | null>(null)
   const [loading, setLoading] = useState(Boolean(token))
-  const [toast, setToast] = useState('')
+  const [toast, setToast] = useState<{ message: string; kind: 'success' | 'error' } | null>(null)
+  const notify = useCallback((message: string) => setToast({ message, kind: 'success' }), [])
   const [theme, setTheme] = useState<'light' | 'dark'>(() => { const saved = localStorage.getItem('hushful.theme'); return saved === 'light' || saved === 'dark' ? saved : window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' })
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('hushful.theme', theme) }, [theme])
   const themeToggle = <ThemeToggle theme={theme} toggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
@@ -29,7 +30,7 @@ export default function App() {
   const logout = useCallback(() => { authStorage.clear(); setToken(null); setUser(null) }, [])
   const onError = useCallback((error: unknown) => {
     if (error instanceof ApiError && error.status === 401) return logout()
-    setToast(error instanceof Error ? error.message : 'Something went wrong. Please try again.')
+    setToast({ message: error instanceof Error ? error.message : 'Something went wrong. Please try again.', kind: 'error' })
   }, [logout])
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export default function App() {
   }, [token, onError])
   useEffect(() => {
     if (!toast) return
-    const timer = window.setTimeout(() => setToast(''), 4200)
+    const timer = window.setTimeout(() => setToast(null), 4200)
     return () => window.clearTimeout(timer)
   }, [toast])
   useEffect(() => {
@@ -55,8 +56,8 @@ export default function App() {
   if (!user.username) return <>{themeToggle}<UsernameOnboarding token={token} completed={setUser} logout={logout} /></>
   return <>
     {themeToggle}
-    <Dashboard token={token} user={user} setUser={setUser} logout={logout} onError={onError} notify={setToast} />
-    {toast && <div className="toast" role="status"><Check />{toast}</div>}
+    <Dashboard token={token} user={user} setUser={setUser} logout={logout} onError={onError} notify={notify} />
+    {toast && <div className={`toast ${toast.kind}`} role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.kind === 'error' ? <CircleAlert /> : <Check />}{toast.message}</div>}
   </>
 }
 
@@ -80,6 +81,7 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   const [error, setError] = useState('')
   const [identity, setIdentity] = useState<{ itemId: string; purchasedQuantity: number } | null>(null)
   const [noteItem, setNoteItem] = useState<{ itemId: string; note?: string; displayName?: string; shareName?: boolean } | null>(null)
+  const discussionError = useCallback((e: unknown) => setError(e instanceof Error ? e.message : 'Unable to update the discussion.'), [])
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -107,6 +109,7 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   return <main className="page detail-page shared-detail guest-shared-detail">
     <header className="page-heading"><div><Logo compact /><p className="eyebrow">Shared by {share?.sharedByName || 'Someone'}</p><h1>{share?.title}</h1><p>No account is needed. Claims and notes stay hidden from the list owner.</p></div><div className="heading-actions"><button className="secondary" onClick={() => void load()}><RefreshCw /> Refresh</button></div></header>
     {error && <p className="auth-error" role="alert">{error}</p>}
+    {viewerToken && <DiscussionPanel shareToken={shareToken} viewerToken={viewerToken} defaultName="" onError={discussionError} />}
     {rows.length ? <div className="items-grid">{rows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={() => void update(row.item.id, { note: '', shareName: false })} />)}</div> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
     {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, displayName, shareName }); setIdentity(null) }} />}
     {noteItem && <NoteModal initial={noteItem} defaultName="" close={() => setNoteItem(null)} save={(note, displayName, shareName) => { const itemId = noteItem.itemId; setNoteItem(null); return update(itemId, { note, displayName, shareName }) }} />}
@@ -412,10 +415,81 @@ function SharedDetail({ token, accountId, defaultNoteName, share, pinned, toggle
         {share.accountShareID && share.shareToken && <button className="secondary danger-text" onClick={onRemove}><Trash2 /> Remove from account</button>}
       </div>
     </section>
+    <DiscussionPanel token={token} shareToken={share.shareToken} viewerToken={viewerToken || undefined} accountShareID={share.accountShareID} defaultName={defaultNoteName} onError={onError} />
     {loading ? <FullPageLoader embedded /> : rows.length ? <div className="items-grid">{rows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={async () => { await update(row.item.id, { note: '', shareName: false }); await load() }} />)}</div> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
     {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, note: identity.note, displayName, shareName }); setIdentity(null) }} />}
     {noteItem && <NoteModal initial={noteItem} defaultName={defaultNoteName} close={() => setNoteItem(null)} save={async (note, displayName, shareName) => { const itemId = noteItem.itemId; setNoteItem(null); await update(itemId, { note, displayName, shareName }); await load() }} />}
   </div>
+}
+
+function DiscussionPanel({ token, shareToken, viewerToken, accountShareID, defaultName, onError }: { token?: string; shareToken: string; viewerToken?: string; accountShareID?: string; defaultName: string; onError: (error: unknown) => void }) {
+  const [comments, setComments] = useState<WishlistDiscussionComment[]>([])
+  const [message, setMessage] = useState('')
+  const [name, setName] = useState(() => defaultName || localStorage.getItem('hushful.displayName') || '')
+  const [anonymous, setAnonymous] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [sending, setSending] = useState(false)
+
+  const load = useCallback(async () => {
+    if (!accountShareID && (!shareToken || !viewerToken)) return
+    setLoading(true)
+    try {
+      setComments(accountShareID && token
+        ? await api.accountDiscussion(token, accountShareID)
+        : await api.discussion(shareToken, viewerToken!))
+    } catch (error) { onError(error) }
+    finally { setLoading(false) }
+  }, [token, shareToken, viewerToken, accountShareID, onError])
+
+  useEffect(() => { void load() }, [load])
+
+  async function post(event: FormEvent) {
+    event.preventDefault()
+    const trimmed = message.trim()
+    if (!trimmed || (!anonymous && !name.trim())) return
+    setSending(true)
+    try {
+      const body = { message: trimmed, displayName: anonymous ? undefined : name.trim(), shareName: !anonymous }
+      const created = accountShareID && token
+        ? await api.createAccountDiscussionComment(token, accountShareID, body)
+        : await api.createDiscussionComment(shareToken, viewerToken!, body)
+      if (!anonymous) localStorage.setItem('hushful.displayName', name.trim())
+      setComments((all) => [...all, created])
+      setMessage('')
+    } catch (error) { onError(error) }
+    finally { setSending(false) }
+  }
+
+  async function remove(comment: WishlistDiscussionComment) {
+    if (!window.confirm('Delete this comment from the discussion?')) return
+    try {
+      if (accountShareID && token) await api.deleteAccountDiscussionComment(token, accountShareID, comment.id)
+      else await api.deleteDiscussionComment(shareToken, viewerToken!, comment.id)
+      setComments((all) => all.filter((item) => item.id !== comment.id))
+    } catch (error) { onError(error) }
+  }
+
+  return <section className="discussion-panel">
+    <div className="discussion-heading">
+      <div className="discussion-title"><span><MessageCircle /></span><div><strong>Gift-planning discussion</strong><small>Private from every wishlist owner</small></div></div>
+      <button className="text-button" onClick={() => void load()}><RefreshCw /> Refresh</button>
+    </div>
+    <div className="discussion-comments" aria-live="polite">
+      {loading && !comments.length ? <div className="discussion-empty"><LoaderCircle className="spin" /> Loading discussion…</div> : comments.length ? comments.map((comment) => <article className="discussion-comment" key={comment.id}>
+        <div><strong>{comment.authorDisplayName || 'Anonymous'}</strong><time>{comment.createdAt ? new Date(comment.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : ''}</time></div>
+        <p>{comment.message}</p>
+        {comment.isMine && <button className="text-button danger-text" onClick={() => void remove(comment)}><Trash2 /> Delete</button>}
+      </article>) : <div className="discussion-empty">No comments yet. Start the conversation with the other gift planners.</div>}
+    </div>
+    <form className="discussion-composer" onSubmit={post}>
+      <textarea value={message} maxLength={1000} onChange={(event) => setMessage(event.target.value)} placeholder="Write a comment…" rows={3} />
+      <div className="discussion-identity">
+        <label className="checkbox"><input type="checkbox" checked={anonymous} onChange={(event) => setAnonymous(event.target.checked)} /><span><strong>Post anonymously</strong></span></label>
+        {!anonymous && <input aria-label="Your name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" maxLength={80} />}
+        <button className="primary" disabled={sending || !message.trim() || (!anonymous && !name.trim())}>{sending ? <LoaderCircle className="spin" /> : <Send />}{sending ? 'Posting…' : 'Post comment'}</button>
+      </div>
+    </form>
+  </section>
 }
 
 function OwnerItemCard({ item, edit, remove }: { item: WishlistItem; edit: () => void; remove: () => void }) {
@@ -612,12 +686,19 @@ function WishlistCollaborationModal({ token, wishlist, close, notify, onError }:
 function AccountModal({ token, user, userChanged, close, save, onError, notify, logout }: { token: string; user: CurrentUser; userChanged: (user: CurrentUser) => void; close: () => void; save: (profile: Partial<CurrentUser>) => void; onError: (e: unknown) => void; notify: (s: string) => void; logout: () => void }) {
   const [name, setName] = useState(user.displayName || ''), [discoverable, setDiscoverable] = useState(user.isDiscoverable), [policy, setPolicy] = useState(user.friendRequestPolicy), [avatarVersion, setAvatarVersion] = useState(0), [avatarBusy, setAvatarBusy] = useState(false)
   const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof api.metricsSummary>> | null>(null)
-  useEffect(() => { api.metricsSummary(token).then(setMetrics).catch(() => undefined) }, [token])
+  const [feedback, setFeedback] = useState<Awaited<ReturnType<typeof api.adminFeedback>> | null>(null)
+  const [feedbackCategory, setFeedbackCategory] = useState('general'), [feedbackMessage, setFeedbackMessage] = useState(''), [feedbackBusy, setFeedbackBusy] = useState(false), [feedbackError, setFeedbackError] = useState('')
+  useEffect(() => { api.metricsSummary(token).then(setMetrics).catch(() => undefined); api.adminFeedback(token).then(setFeedback).catch(() => undefined) }, [token])
+  async function submitFeedback() { const message = feedbackMessage.trim(); if (!message) return; setFeedbackBusy(true); setFeedbackError(''); try { await api.submitFeedback(token, feedbackCategory, message); setFeedbackMessage(''); notify('Thank you—your feedback was received') } catch (e) { setFeedbackError(e instanceof Error ? e.message : 'Unable to submit feedback.') } finally { setFeedbackBusy(false) } }
   async function upload(file?: File) { if (!file) return; if (file.size > 2 * 1024 * 1024) return onError(new Error('Profile pictures must be 2 MB or smaller.')); if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return onError(new Error('Choose a JPEG, PNG, or WebP image.')); setAvatarBusy(true); try { userChanged(await api.uploadAvatar(token, file)); setAvatarVersion(Date.now()); notify('Profile picture updated') } catch (e) { onError(e) } finally { setAvatarBusy(false) } }
   async function removeAvatar() { if (!window.confirm('Remove your profile picture? This cannot be undone.')) return; setAvatarBusy(true); try { userChanged(await api.removeAvatar(token)); setAvatarVersion(Date.now()); notify('Profile picture removed') } catch (e) { onError(e) } finally { setAvatarBusy(false) } }
   return <Modal close={close}><ModalHeader eyebrow="Your Hushful account" title="Account & privacy" close={close} /><form className="stack-form" onSubmit={(e) => { e.preventDefault(); save({ displayName: name.trim(), isDiscoverable: discoverable, friendRequestPolicy: policy }) }}>
     <div className="avatar-editor"><Avatar name={name || user.email} userId={user.id} hasAvatar={user.hasAvatar} version={avatarVersion} /><div><label className="secondary avatar-upload">{avatarBusy ? 'Uploading…' : user.hasAvatar ? 'Change picture' : 'Add picture'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarBusy} onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} /></label>{user.hasAvatar && <button type="button" className="text-button danger-text" disabled={avatarBusy} onClick={() => void removeAvatar()}>Remove</button>}<small>JPEG, PNG, or WebP · 2 MB maximum</small></div></div>
-    <Field label="Display name"><input value={name} onChange={(e) => setName(e.target.value)} /></Field><Field label="Username"><input value={user.username ? `@${user.username}` : 'Not set'} disabled /></Field><p className="hint">Your username is permanent and cannot be changed.</p><label className="checkbox"><input type="checkbox" checked={discoverable} onChange={(e) => setDiscoverable(e.target.checked)} /><span><strong>Let people find my username</strong><small>Your profile picture and username appear in search. Your email never does.</small></span></label><Field label="Friend requests"><select value={policy} onChange={(e) => setPolicy(e.target.value as CurrentUser['friendRequestPolicy'])}><option value="everyone">Anyone who finds me</option><option value="nobody">Nobody</option></select></Field><Field label="Email"><input value={user.email} disabled /></Field>{metrics && <section className="metrics-panel"><div><strong>Hushful metrics</strong><small>Last {metrics.days} days · privacy-preserving</small></div><div className="metric-grid"><span><strong>{metrics.totalAccounts}</strong><small>Total accounts</small></span><span><strong>{metrics.newAccounts}</strong><small>New signups</small></span><span><strong>{metrics.visitors}</strong><small>Web visitors</small></span><span><strong>{metrics.views}</strong><small>Page views</small></span></div><div className="metric-paths">{metrics.topPaths.slice(0, 5).map((entry) => <span key={entry.path}><small>{entry.path}</small><strong>{entry.views}</strong></span>)}</div></section>}<div className="modal-actions spread"><button type="button" className="text-button danger-text" onClick={logout}><LogOut /> Log out</button><button className="primary" disabled={!name.trim()}>Save changes</button></div>
+    <Field label="Display name"><input value={name} onChange={(e) => setName(e.target.value)} /></Field><Field label="Username"><input value={user.username ? `@${user.username}` : 'Not set'} disabled /></Field><p className="hint">Your username is permanent and cannot be changed.</p><label className="checkbox"><input type="checkbox" checked={discoverable} onChange={(e) => setDiscoverable(e.target.checked)} /><span><strong>Let people find my username</strong><small>Your profile picture and username appear in search. Your email never does.</small></span></label><Field label="Friend requests"><select value={policy} onChange={(e) => setPolicy(e.target.value as CurrentUser['friendRequestPolicy'])}><option value="everyone">Anyone who finds me</option><option value="nobody">Nobody</option></select></Field><Field label="Email"><input value={user.email} disabled /></Field>
+    <section className="feedback-panel"><div><strong>Send feedback</strong><small>Ideas, problems, and little details all help make Hushful better.</small></div><Field label="Category"><select value={feedbackCategory} onChange={(e) => setFeedbackCategory(e.target.value)}><option value="general">General</option><option value="idea">Idea</option><option value="problem">Problem</option><option value="praise">Praise</option></select></Field><Field label="Your feedback"><textarea rows={4} maxLength={4000} value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="Tell us what’s on your mind…" /></Field><small className="feedback-count">{feedbackMessage.length}/4,000</small>{feedbackError && <p className="form-error" role="alert">{feedbackError}</p>}<button type="button" className="secondary" disabled={feedbackBusy || !feedbackMessage.trim()} onClick={() => void submitFeedback()}>{feedbackBusy ? <LoaderCircle className="spin" /> : <Send />} Submit feedback</button></section>
+    {metrics && <section className="metrics-panel"><div><strong>Hushful metrics</strong><small>Last {metrics.days} days · privacy-preserving</small></div><div className="metric-grid"><span><strong>{metrics.totalAccounts}</strong><small>Total accounts</small></span><span><strong>{metrics.newAccounts}</strong><small>New signups</small></span><span><strong>{metrics.visitors}</strong><small>Web visitors</small></span><span><strong>{metrics.views}</strong><small>Page views</small></span></div><div className="metric-paths">{metrics.topPaths.slice(0, 5).map((entry) => <span key={entry.path}><small>{entry.path}</small><strong>{entry.views}</strong></span>)}</div></section>}
+    {feedback && <section className="feedback-admin"><div><strong>User feedback</strong><small>{feedback.length} response{feedback.length === 1 ? '' : 's'}</small></div>{feedback.length === 0 ? <p className="hint">No feedback submitted yet.</p> : <div className="feedback-responses">{feedback.map((entry) => <article key={entry.id}><div><span>{entry.category}</span><small>{entry.platform.toUpperCase()} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'Just now'}</small></div><p>{entry.message}</p><small>{entry.userDisplayName ? `${entry.userDisplayName} · ` : ''}{entry.userEmail}</small></article>)}</div>}</section>}
+    <div className="modal-actions spread"><button type="button" className="text-button danger-text" onClick={logout}><LogOut /> Log out</button><button className="primary" disabled={!name.trim()}>Save changes</button></div>
     <div className="danger-zone"><strong>Delete account</strong><p>Permanently deletes your wishlists, friendships, groups, activity, and account data.</p><button type="button" className="secondary danger-text" onClick={async () => { const confirmation = window.prompt('This cannot be undone. Type DELETE to permanently delete your account.'); if (confirmation !== 'DELETE') return; try { await api.deleteAccount(token); logout() } catch (e) { onError(e) } }}><Trash2 /> Delete Account</button></div>
   </form></Modal>
 }

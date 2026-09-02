@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, Wishlist, WishlistAudience, WishlistCollaboration, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -52,6 +52,8 @@ export const api = {
   removeItemImage: (token: string, wishlistId: string, itemId: string) => itemImageRequest(token, wishlistId, itemId, 'DELETE'),
   trackPageView: (visitorID: string, path: string, signedIn: boolean) => request<void>('/v1/metrics/events', { method: 'POST', body: JSON.stringify({ visitorID, path, signedIn }) }),
   metricsSummary: (token: string, days = 30) => request<{ days: number; views: number; visitors: number; signedInViews: number; totalAccounts: number; newAccounts: number; daily: Array<{ date: string; views: number; visitors: number; signups: number }>; topPaths: Array<{ path: string; views: number }> }>(`/v1/metrics/summary?days=${days}`, { headers: auth(token) }),
+  submitFeedback: (token: string, category: string, message: string) => request<UserFeedback>('/v1/feedback', { method: 'POST', headers: auth(token), body: JSON.stringify({ category, message, platform: 'web' }) }),
+  adminFeedback: (token: string) => request<UserFeedback[]>('/v1/admin/feedback', { headers: auth(token) }),
   activity: (token: string) => request<ActivityItem[]>('/v1/activity', { headers: auth(token) }),
   readActivity: (token: string, id: string) => request<ActivityItem>(`/v1/activity/${id}/read`, { method: 'POST', headers: auth(token) }),
   readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
@@ -110,6 +112,12 @@ export const api = {
   removeAccountShare: (token: string, id: string) => request<void>(`/v1/shared-wishlists/${id}`, { method: 'DELETE', headers: auth(token) }),
   accountSharedItems: (token: string, id: string) => request<SharedItemRow[]>(`/v1/shared-wishlists/${id}/items`, { headers: auth(token) }),
   updateAccountSharedItem: (token: string, shareId: string, itemId: string, body: { purchased?: boolean; purchasedQuantity?: number; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shared-wishlists/${shareId}/items/${itemId}/state`, { method: 'PUT', headers: auth(token), body: JSON.stringify(body) }),
+  accountDiscussion: (token: string, shareId: string) => request<WishlistDiscussionComment[]>(`/v1/shared-wishlists/${shareId}/discussion`, { headers: auth(token) }),
+  createAccountDiscussionComment: (token: string, shareId: string, body: { message: string; displayName?: string; shareName: boolean }) => request<WishlistDiscussionComment>(`/v1/shared-wishlists/${shareId}/discussion`, { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
+  deleteAccountDiscussionComment: (token: string, shareId: string, commentId: string) => request<void>(`/v1/shared-wishlists/${shareId}/discussion/${commentId}`, { method: 'DELETE', headers: auth(token) }),
   sharedItems: (shareToken: string, viewerToken: string) => request<SharedItemRow[]>(`/v1/shares/${shareToken}/items`, { headers: viewer(viewerToken) }),
   updateSharedItem: (shareToken: string, itemId: string, viewerToken: string, body: { purchased?: boolean; purchasedQuantity?: number; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shares/${shareToken}/items/${itemId}/state`, { method: 'PUT', headers: viewer(viewerToken), body: JSON.stringify(body) }),
+  discussion: (shareToken: string, viewerToken: string) => request<WishlistDiscussionComment[]>(`/v1/shares/${shareToken}/discussion`, { headers: viewer(viewerToken) }),
+  createDiscussionComment: (shareToken: string, viewerToken: string, body: { message: string; displayName?: string; shareName: boolean }) => request<WishlistDiscussionComment>(`/v1/shares/${shareToken}/discussion`, { method: 'POST', headers: viewer(viewerToken), body: JSON.stringify(body) }),
+  deleteDiscussionComment: (shareToken: string, viewerToken: string, commentId: string) => request<void>(`/v1/shares/${shareToken}/discussion/${commentId}`, { method: 'DELETE', headers: viewer(viewerToken) }),
 }

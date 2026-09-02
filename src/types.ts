@@ -30,6 +30,8 @@ export interface WishlistItem {
 export interface SharedWishlist { shareToken: string; title: string; sharedByName?: string; accountShareID?: string; wishlistID?: string }
 export interface AccountSharedWishlist { id: string; wishlistID: string; title: string; sharedByName: string }
 export interface SharedNote { authorDisplayName?: string; updatedAt?: string; note: string; isMine?: boolean }
+export interface WishlistDiscussionComment { id: string; message: string; authorDisplayName?: string; createdAt?: string; isMine: boolean }
+export interface UserFeedback { id: string; category: string; message: string; platform: string; userID: string; userEmail: string; userDisplayName?: string; createdAt?: string }
 export interface SharedItemRow {
   purchasedByMe: boolean; purchased: boolean; purchasedQuantity?: number; purchasedQuantityByMe?: number; notes: SharedNote[];
   item: WishlistItem
