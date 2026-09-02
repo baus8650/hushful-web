@@ -3,6 +3,7 @@ import { Banknote, Bell, CalendarDays, Check, ChevronRight, CircleHelp, Copy, Ex
 import { api, ApiError } from './api'
 import { authStorage, shareStorage } from './storage'
 import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ProfileWishlist, RecurringOccasion, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistItem } from './types'
+import { LegalPage, PublicFooter, legalRoute } from './LegalPages'
 
 type View = { kind: 'home' } | { kind: 'wishlist'; wishlist: Wishlist } | { kind: 'shared'; share: SharedWishlist }
 
@@ -14,6 +15,7 @@ function metricsVisitorID() {
 }
 
 export default function App() {
+  const publicPage = legalRoute(window.location.pathname)
   const resetToken = new URLSearchParams(window.location.search).get('resetToken')
   const guestShareToken = window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]
   const [token, setToken] = useState<string | null>(authStorage.get())
@@ -45,6 +47,7 @@ export default function App() {
     void api.trackPageView(metricsVisitorID(), path, Boolean(token)).catch(() => undefined)
   }, [guestShareToken, resetToken, token])
 
+  if (publicPage) return <>{themeToggle}<LegalPage page={publicPage} /></>
   if (resetToken) return <>{themeToggle}<ResetPasswordScreen token={resetToken} /></>
   if (guestShareToken) return <>{themeToggle}<GuestShareScreen shareToken={guestShareToken} /></>
   if (loading) return <FullPageLoader />
@@ -150,7 +153,7 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode('forgot') }}>Forgot password?</button>}
       <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
     </section>
-    <p className="auth-foot">Private by design · Share only with the people you choose</p>
+    <PublicFooter />
   </main>
 }
 
@@ -216,7 +219,7 @@ function ResetPasswordScreen({ token }: { token: string }) {
         <button className="primary wide" disabled={busy}>{busy && <LoaderCircle className="spin" />} Update password <ChevronRight /></button>
       </form>}
     </section>
-    <p className="auth-foot">Private by design · Share only with the people you choose</p>
+    <PublicFooter />
   </main>
 }
 
@@ -531,7 +534,7 @@ function FriendsModal({ token, close, onError, notify, openShare }: { token: str
     {incoming.length > 0 && <section><h3>Requests</h3>{incoming.map((request) => <SocialRow key={request.id} person={request.user} action={<button className="primary" onClick={async () => { try { await api.acceptFriend(token, request.id); notify('Friend added'); await load() } catch (e) { onError(e) } }}>Accept</button>} />)}</section>}
     <section><h3>Friends</h3>{friends.length ? friends.map((friend) => <button className="profile-list-row" key={friend.id} onClick={() => setProfile(friend)}><Avatar name={friend.user.displayName || friend.user.username} userId={friend.user.id} hasAvatar={friend.user.hasAvatar} /><span><strong>{friend.user.displayName || `@${friend.user.username}`}</strong><small>@{friend.user.username}</small></span><ChevronRight /></button>) : <p className="hint">Search for a username to start your private circle.</p>}</section>
     <section><h3>Private groups</h3><form className="inline-social-form" onSubmit={async (e) => { e.preventDefault(); if (!groupName.trim()) return; try { await api.createFriendGroup(token, groupName.trim()); setGroupName(''); await load() } catch (error) { onError(error) } }}><input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Family, close friends…" /><button className="secondary">Create</button></form>
-      {groups.map((group) => <details className="social-group" key={group.id}><summary>{group.name}<small>{group.members.length} members</small></summary><button className="text-button" onClick={async () => { try { setPins(await (pins.groupIDs.includes(group.id) ? api.unpin(token, 'group', group.id) : api.pin(token, 'group', group.id))) } catch (e) { onError(e) } }}><Pin /> {pins.groupIDs.includes(group.id) ? 'Unpin group' : 'Pin group'}</button>{friends.map((friend) => { const checked = group.members.some((member) => member.id === friend.user.id); return <label className="audience-choice" key={friend.user.id}><input type="checkbox" checked={checked} onChange={async () => { if (checked && !window.confirm(`Remove ${friend.user.displayName || `@${friend.user.username}`} from “${group.name}”?`)) return; try { checked ? await api.removeGroupMember(token, group.id, friend.user.id) : await api.addGroupMember(token, group.id, friend.user.id); await load() } catch (e) { onError(e) } }} /><span>{friend.user.displayName || `@${friend.user.username}`}<small>@{friend.user.username}</small></span></label> })}</details>)}
+      {groups.map((group) => <details className="social-group" key={group.id}><summary>{group.name}<small>{group.members.length} members</small></summary><button className="text-button" onClick={async () => { try { setPins(await (pins.groupIDs.includes(group.id) ? api.unpin(token, 'group', group.id) : api.pin(token, 'group', group.id))) } catch (e) { onError(e) } }}><Pin /> {pins.groupIDs.includes(group.id) ? 'Unpin group' : 'Pin group'}</button>{friends.map((friend) => { const checked = group.members.some((member) => member.id === friend.user.id); return <label className="audience-choice" key={friend.user.id}><input type="checkbox" checked={checked} onChange={async () => { if (checked && !window.confirm(`Remove ${friend.user.displayName || `@${friend.user.username}`} from “${group.name}”?`)) return; try { if (checked) await api.removeGroupMember(token, group.id, friend.user.id); else await api.addGroupMember(token, group.id, friend.user.id); await load() } catch (e) { onError(e) } }} /><span>{friend.user.displayName || `@${friend.user.username}`}<small>@{friend.user.username}</small></span></label> })}</details>)}
     </section>
   </div></Modal>
 }
