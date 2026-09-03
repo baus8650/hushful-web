@@ -109,8 +109,8 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   return <main className="page detail-page shared-detail guest-shared-detail">
     <header className="page-heading"><div><Logo compact /><p className="eyebrow">Shared by {share?.sharedByName || 'Someone'}</p><h1>{share?.title}</h1><p>No account is needed. Claims and notes stay hidden from the list owner.</p></div><div className="heading-actions"><button className="secondary" onClick={() => void load()}><RefreshCw /> Refresh</button></div></header>
     {error && <p className="auth-error" role="alert">{error}</p>}
-    {viewerToken && <DiscussionPanel shareToken={shareToken} viewerToken={viewerToken} defaultName="" onError={discussionError} />}
     {rows.length ? <div className="items-grid">{rows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={() => void update(row.item.id, { note: '', shareName: false })} />)}</div> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
+    {viewerToken && <DiscussionPanel shareToken={shareToken} viewerToken={viewerToken} defaultName="" onError={discussionError} />}
     {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, displayName, shareName }); setIdentity(null) }} />}
     {noteItem && <NoteModal initial={noteItem} defaultName="" close={() => setNoteItem(null)} save={(note, displayName, shareName) => { const itemId = noteItem.itemId; setNoteItem(null); return update(itemId, { note, displayName, shareName }) }} />}
   </main>
@@ -415,8 +415,8 @@ function SharedDetail({ token, accountId, defaultNoteName, share, pinned, toggle
         {share.accountShareID && share.shareToken && <button className="secondary danger-text" onClick={onRemove}><Trash2 /> Remove from account</button>}
       </div>
     </section>
-    <DiscussionPanel token={token} shareToken={share.shareToken} viewerToken={viewerToken || undefined} accountShareID={share.accountShareID} defaultName={defaultNoteName} onError={onError} />
     {loading ? <FullPageLoader embedded /> : rows.length ? <div className="items-grid">{rows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={async () => { await update(row.item.id, { note: '', shareName: false }); await load() }} />)}</div> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
+    <DiscussionPanel token={token} shareToken={share.shareToken} viewerToken={viewerToken || undefined} accountShareID={share.accountShareID} defaultName={defaultNoteName} onError={onError} />
     {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, note: identity.note, displayName, shareName }); setIdentity(null) }} />}
     {noteItem && <NoteModal initial={noteItem} defaultName={defaultNoteName} close={() => setNoteItem(null)} save={async (note, displayName, shareName) => { const itemId = noteItem.itemId; setNoteItem(null); await update(itemId, { note, displayName, shareName }); await load() }} />}
   </div>
