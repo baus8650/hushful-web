@@ -5,6 +5,8 @@ import { authStorage, shareStorage } from './storage'
 import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, ProfileWishlist, RecurringOccasion, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistDiscussionComment, WishlistItem } from './types'
 import { LegalPage, PublicFooter, legalRoute } from './LegalPages'
 
+import { FREE_LIST_LIMIT, activeOwnedListCount, canCreateWishlist } from './proAccess'
+
 type View = { kind: 'home' } | { kind: 'wishlist'; wishlist: Wishlist } | { kind: 'shared'; share: SharedWishlist }
 
 function metricsVisitorID() {
@@ -59,6 +61,17 @@ export default function App() {
     <Dashboard token={token} user={user} setUser={setUser} logout={logout} onError={onError} notify={notify} />
     {toast && <div className={`toast ${toast.kind}`} role={toast.kind === 'error' ? 'alert' : 'status'}>{toast.kind === 'error' ? <CircleAlert /> : <Check />}{toast.message}</div>}
   </>
+}
+
+function ProPlan({ isPro, activeLists }: { isPro: boolean; activeLists?: number }) {
+  return <section className="pro-plan">
+    <p className="eyebrow"><Sparkles size={16} /> {isPro ? 'Hushful Pro' : 'Hushful Free'}</p>
+    <p>{isPro ? 'Your account has access to all Pro features available on the web.' : `Free includes up to ${FREE_LIST_LIMIT} active lists, unlimited wishes, sharing, and gift coordination.`}</p>
+    {!isPro && activeLists !== undefined && <p className="hint">{activeLists} of {FREE_LIST_LIMIT} active lists used. Lists owned by someone else don’t count toward your limit.</p>}
+    <p>Pro unlocks unlimited active lists, recurring occasions, and cash funds on the web. The iOS app also includes templates, styling, insights, export, and duplication.</p>
+    {!isPro && <p>To unlock additional functionality, download the Hushful iOS app and upgrade to Pro once it launches. Use the same Hushful account on both devices.</p>}
+    <p className="hint">The iOS app is awaiting App Store approval. Web payments and Android are coming soon.</p>
+  </section>
 }
 
 function ThemeToggle({ theme, toggle }: { theme: 'light' | 'dark'; toggle: () => void }) {
@@ -155,6 +168,7 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
       </>}
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode('forgot') }}>Forgot password?</button>}
       <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
+    <p className="hint">The iOS app is awaiting App Store approval. Web payments and Android are coming soon.</p>
     </section>
     <PublicFooter />
   </main>
@@ -236,6 +250,11 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   const [shared, setShared] = useState(() => shareStorage.list(user.id))
   const [busy, setBusy] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
+  const [proOpen, setProOpen] = useState(false)
+  const [refreshingPro, setRefreshingPro] = useState(false)
+  const creating = useRef(false)
+  async function refreshPro() { setRefreshingPro(true); try { const updated = await api.me(token); setUser(updated); notify(updated.isPro ? 'Hushful Pro is active' : 'Your account is on the free plan.') } catch (e) { onError(e) } finally { setRefreshingPro(false) } }
+  useEffect(() => { const refresh = () => { void api.me(token).then(setUser).catch(onError) }; window.addEventListener('focus', refresh); return () => window.removeEventListener('focus', refresh) }, [token, setUser, onError])
   const [shareOpen, setShareOpen] = useState(false)
   const [sharedLibraryOpen, setSharedLibraryOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
@@ -284,8 +303,15 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
 
   function select(next: View) { setView(next); setMobileNav(false) }
   async function toggleWishlistPin(id: string) { try { setPins(await (pins.wishlistIDs.includes(id) ? api.unpin(token, 'wishlist', id) : api.pin(token, 'wishlist', id))); notify(pins.wishlistIDs.includes(id) ? 'Removed from pinned lists' : 'Pinned to home') } catch (e) { onError(e) } }
+  function openCreate() { if (!busy && canCreateWishlist(user.isPro === true, wishlists)) setCreateOpen(true); else if (!busy) setProOpen(true) }
   async function createWishlist(title: string, visibility: 'public' | 'private') {
-    try { let created = await api.createWishlist(token, title, visibility); if (created.visibility !== visibility) { const settings = await api.updateWishlistSettings(token, created.id, { visibility }); created = { ...created, visibility: settings.visibility } }; created = { ...created, proAccess: user.isPro === true }; setWishlists((old) => [created, ...old]); setCreateOpen(false); select({ kind: 'wishlist', wishlist: created }); notify('Wishlist created') } catch (e) { onError(e) }
+    if (creating.current) return
+    creating.current = true
+    try {
+      const [account, latest] = await Promise.all([api.me(token), api.wishlists(token)])
+      setUser(account)
+      if (!canCreateWishlist(account.isPro === true, latest)) { setWishlists(latest); setCreateOpen(false); setProOpen(true); return }
+      let created = await api.createWishlist(token, title, visibility); if (created.visibility !== visibility) { const settings = await api.updateWishlistSettings(token, created.id, { visibility }); created = { ...created, visibility: settings.visibility } }; created = { ...created, proAccess: account.isPro === true }; setWishlists((old) => [created, ...old]); setCreateOpen(false); select({ kind: 'wishlist', wishlist: created }); notify('Wishlist created') } catch (e) { onError(e) } finally { creating.current = false }
   }
   function saveShare(share: SharedWishlist, viewerToken: string) {
     shareStorage.save(user.id, share, viewerToken); setShared(shareStorage.list(user.id)); setShareOpen(false); select({ kind: 'shared', share })
@@ -311,8 +337,8 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
         <button className="nav-home" onClick={() => { setFriendsOpen(true); setMobileNav(false) }}><Users /> Friends</button>
         <button className="nav-home" onClick={() => { setPeopleSearchOpen(true); setMobileNav(false) }}><User /> Find people</button>
         <button className="nav-home" onClick={() => { setActivityOpen(true); setMobileNav(false) }}><Bell /> Activity {activity.some((item) => !item.readAt) && <span className="notification-badge">{activity.filter((item) => !item.readAt).length}</span>}</button>
-        {user.isPro === true && <button className="nav-home" onClick={() => { setOccasionsOpen(true); setMobileNav(false) }}><CalendarDays /> Occasions</button>}
-        <NavGroup title="My wishlists" action={<button aria-label="New wishlist" onClick={() => setCreateOpen(true)}><Plus /></button>}>
+        <button className="nav-home" onClick={() => { if (user.isPro) setOccasionsOpen(true); else setProOpen(true); setMobileNav(false) }}><CalendarDays /> Occasions{!user.isPro && <small>Pro</small>}</button>
+        <NavGroup title="My wishlists" action={<button aria-label="New wishlist" onClick={openCreate}><Plus /></button>}>
           {wishlists.filter((wishlist) => wishlist.isCollaborative !== true).map((wishlist) => <button key={wishlist.id} className={view.kind === 'wishlist' && view.wishlist.id === wishlist.id ? 'active' : ''} onClick={() => select({ kind: 'wishlist', wishlist })}><span className="nav-dot" />{wishlist.title}</button>)}
         </NavGroup>
         {wishlists.some((wishlist) => wishlist.isCollaborative === true) && <NavGroup title="My collaborations" action={<Users />}>
@@ -328,14 +354,16 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
         </NavGroup>
         <button className="nav-home" onClick={() => setSharedLibraryOpen(true)}><Link2 /> All shared lists</button>
       </nav>
+      <button className="tutorial-button" onClick={() => setProOpen(true)}><Sparkles /> {user.isPro ? 'Hushful Pro active' : 'Explore Hushful Pro'}</button>
       <button className="tutorial-button" onClick={() => setTutorialOpen(true)}><CircleHelp /> How Hushful works</button>
       <button className="profile-chip" onClick={() => setAccountOpen(true)}><Avatar name={user.displayName || user.email} userId={user.id} hasAvatar={user.hasAvatar} /><span><strong>{user.displayName || 'Your account'}</strong><small>{user.email}</small></span><Settings /></button>
     </aside>
     {mobileNav && <button className="scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
     <main className="main-panel">
       <header className="mobile-header"><button className="icon-button" onClick={() => setMobileNav(true)}><Menu /></button><Logo compact /><span /></header>
-      {busy ? <FullPageLoader embedded /> : view.kind === 'home' ? <Home user={user} wishlists={wishlists} shared={shared.filter((share) => Boolean(share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)))} openWishlist={(w) => select({ kind: 'wishlist', wishlist: w })} openShared={(s) => select({ kind: 'shared', share: s })} newWishlist={() => setCreateOpen(true)} openShare={() => setShareOpen(true)} /> : view.kind === 'wishlist' ? <WishlistDetail token={token} wishlist={view.wishlist} allWishlists={wishlists} pinned={pins.wishlistIDs.includes(view.wishlist.id)} togglePin={() => void toggleWishlistPin(view.wishlist.id)} onRenamed={(updated) => { setWishlists((all) => all.map((item) => item.id === updated.id ? updated : item)); setView({ kind: 'wishlist', wishlist: updated }) }} onError={onError} notify={notify} /> : <SharedDetail token={token} accountId={user.id} defaultNoteName={user.displayName || user.email.split('@')[0]} share={view.share} pinned={Boolean(view.share.wishlistID && pins.wishlistIDs.includes(view.share.wishlistID))} togglePin={() => view.share.wishlistID && void toggleWishlistPin(view.share.wishlistID)} onError={onError} onRemove={() => void removeShare(view.share)} onAdd={() => addShareToAccount(view.share)} />}
+      {busy ? <FullPageLoader embedded /> : view.kind === 'home' ? <Home user={user} wishlists={wishlists} shared={shared.filter((share) => Boolean(share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)))} openWishlist={(w) => select({ kind: 'wishlist', wishlist: w })} openShared={(s) => select({ kind: 'shared', share: s })} newWishlist={openCreate} openShare={() => setShareOpen(true)} /> : view.kind === 'wishlist' ? <WishlistDetail token={token} wishlist={{ ...view.wishlist, proAccess: user.isPro === true }} onDeleted={() => { setWishlists((all) => all.filter((list) => list.id !== view.wishlist.id)); select({ kind: 'home' }); notify('Wishlist deleted') }} allWishlists={wishlists} pinned={pins.wishlistIDs.includes(view.wishlist.id)} togglePin={() => void toggleWishlistPin(view.wishlist.id)} onRenamed={(updated) => { setWishlists((all) => all.map((item) => item.id === updated.id ? updated : item)); setView({ kind: 'wishlist', wishlist: updated }) }} onError={onError} notify={notify} /> : <SharedDetail token={token} accountId={user.id} defaultNoteName={user.displayName || user.email.split('@')[0]} share={view.share} pinned={Boolean(view.share.wishlistID && pins.wishlistIDs.includes(view.share.wishlistID))} togglePin={() => view.share.wishlistID && void toggleWishlistPin(view.share.wishlistID)} onError={onError} onRemove={() => void removeShare(view.share)} onAdd={() => addShareToAccount(view.share)} />}
     </main>
+    {proOpen && <Modal close={() => setProOpen(false)}><ModalHeader eyebrow="Your plan" title={user.isPro ? "Hushful Pro is active" : "Make room for more wishes"} close={() => setProOpen(false)} /><ProPlan isPro={user.isPro === true} activeLists={activeOwnedListCount(wishlists)} /><button className="secondary" disabled={refreshingPro} onClick={() => void refreshPro()}><RefreshCw /> {refreshingPro ? 'Checking…' : 'Refresh Pro status'}</button></Modal>}
     {createOpen && <CreateWishlistModal close={() => setCreateOpen(false)} create={createWishlist} />}
     {shareOpen && <OpenShareModal accessToken={token} accountId={user.id} initialToken={window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]} close={() => setShareOpen(false)} save={saveShare} onError={onError} />}
     {sharedLibraryOpen && <Modal close={() => setSharedLibraryOpen(false)} size="modal-wide"><ModalHeader eyebrow="Your complete library" title="All shared lists" close={() => setSharedLibraryOpen(false)} /><div className="social-stack">{shared.length ? [...shared].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })).map((share) => <button className="profile-list-row" key={share.accountShareID || share.shareToken} onClick={() => { setSharedLibraryOpen(false); select({ kind: 'shared', share }) }}><Gift /><span><strong>{share.title}</strong><small>Shared by {share.sharedByName || 'Someone'}</small></span><ChevronRight /></button>) : <p className="hint">No lists have been shared with you yet.</p>}<div className="modal-actions"><button className="secondary" onClick={() => { setSharedLibraryOpen(false); setShareOpen(true) }}><Link2 /> Open a link</button></div></div></Modal>}
@@ -367,10 +395,11 @@ function Home({ user, wishlists, shared, openWishlist, openShared, newWishlist, 
   </div>
 }
 
-function WishlistDetail({ token, wishlist, allWishlists, pinned, togglePin, onRenamed, onError, notify }: { token: string; wishlist: Wishlist; allWishlists: Wishlist[]; pinned: boolean; togglePin: () => void; onRenamed: (wishlist: Wishlist) => void; onError: (e: unknown) => void; notify: (s: string) => void }) {
+function WishlistDetail({ token, wishlist, allWishlists, pinned, togglePin, onRenamed, onDeleted, onError, notify }: { token: string; wishlist: Wishlist; allWishlists: Wishlist[]; pinned: boolean; togglePin: () => void; onRenamed: (wishlist: Wishlist) => void; onDeleted: () => void; onError: (e: unknown) => void; notify: (s: string) => void }) {
   const [items, setItems] = useState<WishlistItem[]>([])
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
+  const [deletingList, setDeletingList] = useState(false)
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null)
   const [sharing, setSharing] = useState(false)
   const [collaborating, setCollaborating] = useState(false)
@@ -392,6 +421,7 @@ function WishlistDetail({ token, wishlist, allWishlists, pinned, togglePin, onRe
     {sharing && <SocialShareModal token={token} wishlist={wishlist} close={() => setSharing(false)} notify={notify} onError={onError} />}
     {collaborating && <WishlistCollaborationModal token={token} wishlist={wishlist} close={() => setCollaborating(false)} notify={notify} onError={onError} />}
     {renaming && <RenameWishlistModal initial={wishlist.title} close={() => setRenaming(false)} save={async (title) => { try { const updated = await api.renameWishlist(token, wishlist.id, title); onRenamed(updated); setRenaming(false); notify('Wishlist renamed') } catch (e) { onError(e) } }} />}
+    {wishlist.isPrimaryOwner !== false && <div className="danger-zone"><button className="text-button danger-text" disabled={deletingList} onClick={async () => { if (!window.confirm(`Permanently delete “${wishlist.title}” and its contents? This cannot be undone.`)) return; setDeletingList(true); try { await api.deleteWishlist(token, wishlist.id); onDeleted() } catch (e) { onError(e); setDeletingList(false) } }}><Trash2 /> {deletingList ? 'Deleting…' : 'Delete wishlist'}</button><p className="hint">Deleting an active list frees a place on your free plan.</p></div>}
     {editingDescription && <DescriptionModal initial={wishlist.description || ''} close={() => setEditingDescription(false)} save={async (description) => { try { await api.updateWishlistSettings(token, wishlist.id, { description }); onRenamed({ ...wishlist, description }); setEditingDescription(false); notify('Description saved') } catch (e) { onError(e) } }} />}
   </div>
 }
@@ -573,11 +603,13 @@ function AddItemModal({ token, wishlist, allWishlists, initial, close, save }: {
   }
   async function submit(event: FormEvent) {
     event.preventDefault(); setSaving(true); setError('')
+    if (cashFund && !wishlist.proAccess) { setError('Cash funds require Hushful Pro.'); setSaving(false); return }
     if (cashFund && !/^https:\/\//i.test(url.trim())) { setError('Enter a valid payment link beginning with https://.'); setSaving(false); return }
     try { await save({ title: title.trim(), url: url.trim() || undefined, price: cashFund ? undefined : price ? Number(price.replace(',', '.')) : undefined, ownerNote: note.trim() || undefined, quantity: cashFund ? 1 : quantity, linkedWishlistIDs: [...linked], itemType: cashFund ? 'cash_fund' : 'wish', contributionGoal: cashFund && goal ? Number(goal.replace(',', '.')) : undefined }, { file: imageFile, remove: removeImage }) }
     catch (problem) { setError(problem instanceof Error ? problem.message : 'The wish could not be saved.'); setSaving(false) }
   }
   return <Modal close={close} size="modal-wide"><ModalHeader eyebrow={editing ? 'A thoughtful adjustment' : 'One more lovely thing'} title={editing ? 'Edit this wish' : 'Add a wish'} close={close} /><form className="stack-form" onSubmit={submit}>
+    {!editing && !wishlist.proAccess && <p className="hint">Cash funds require Hushful Pro. Upgrade in the Hushful iOS app once it launches. The iOS app, web payments, and Android are coming soon.</p>}
     {!editing && wishlist.proAccess && <fieldset className="public-choice"><legend>What would you like to add?</legend><label className="checkbox"><input type="radio" checked={!cashFund} onChange={() => setCashFund(false)} /><span><strong>Wish</strong><small>A product or gift idea</small></span></label><label className="checkbox"><input type="radio" checked={cashFund} onChange={() => setCashFund(true)} /><span><strong>Cash Fund</strong><small>An external contribution link</small></span></label></fieldset>}
     <Field label="Image (optional)"><div className="item-image-editor"><div className="item-image-preview">{imagePreview && !removeImage ? <img src={imagePreview} alt="Item preview" onError={() => setImagePreview('')} /> : <Gift />}</div><div><label className="secondary image-upload">{imagePreview && !removeImage ? 'Change image' : 'Choose image'}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = '' }} /></label>{imagePreview && !removeImage && <button type="button" className="text-button danger-text" onClick={() => { setImageFile(undefined); setImagePreview(''); setRemoveImage(Boolean(initial)) }}>Remove image</button>}<small>JPEG, PNG, or WebP · 5 MB maximum</small></div></div></Field>
     <Field label="Item title"><input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What are you wishing for?" /></Field>
@@ -693,6 +725,7 @@ function AccountModal({ token, user, userChanged, close, save, onError, notify, 
   async function upload(file?: File) { if (!file) return; if (file.size > 2 * 1024 * 1024) return onError(new Error('Profile pictures must be 2 MB or smaller.')); if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return onError(new Error('Choose a JPEG, PNG, or WebP image.')); setAvatarBusy(true); try { userChanged(await api.uploadAvatar(token, file)); setAvatarVersion(Date.now()); notify('Profile picture updated') } catch (e) { onError(e) } finally { setAvatarBusy(false) } }
   async function removeAvatar() { if (!window.confirm('Remove your profile picture? This cannot be undone.')) return; setAvatarBusy(true); try { userChanged(await api.removeAvatar(token)); setAvatarVersion(Date.now()); notify('Profile picture removed') } catch (e) { onError(e) } finally { setAvatarBusy(false) } }
   return <Modal close={close}><ModalHeader eyebrow="Your Hushful account" title="Account & privacy" close={close} /><form className="stack-form" onSubmit={(e) => { e.preventDefault(); save({ displayName: name.trim(), isDiscoverable: discoverable, friendRequestPolicy: policy }) }}>
+    <ProPlan isPro={user.isPro === true} />
     <div className="avatar-editor"><Avatar name={name || user.email} userId={user.id} hasAvatar={user.hasAvatar} version={avatarVersion} /><div><label className="secondary avatar-upload">{avatarBusy ? 'Uploading…' : user.hasAvatar ? 'Change picture' : 'Add picture'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={avatarBusy} onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = '' }} /></label>{user.hasAvatar && <button type="button" className="text-button danger-text" disabled={avatarBusy} onClick={() => void removeAvatar()}>Remove</button>}<small>JPEG, PNG, or WebP · 2 MB maximum</small></div></div>
     <Field label="Display name"><input value={name} onChange={(e) => setName(e.target.value)} /></Field><Field label="Username"><input value={user.username ? `@${user.username}` : 'Not set'} disabled /></Field><p className="hint">Your username is permanent and cannot be changed.</p><label className="checkbox"><input type="checkbox" checked={discoverable} onChange={(e) => setDiscoverable(e.target.checked)} /><span><strong>Let people find my username</strong><small>Your profile picture and username appear in search. Your email never does.</small></span></label><Field label="Friend requests"><select value={policy} onChange={(e) => setPolicy(e.target.value as CurrentUser['friendRequestPolicy'])}><option value="everyone">Anyone who finds me</option><option value="nobody">Nobody</option></select></Field><Field label="Email"><input value={user.email} disabled /></Field>
     <section className="feedback-panel"><div><strong>Send feedback</strong><small>Ideas, problems, and little details all help make Hushful better.</small></div><Field label="Category"><select value={feedbackCategory} onChange={(e) => setFeedbackCategory(e.target.value)}><option value="general">General</option><option value="idea">Idea</option><option value="problem">Problem</option><option value="praise">Praise</option></select></Field><Field label="Your feedback"><textarea rows={4} maxLength={4000} value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="Tell us what’s on your mind…" /></Field><small className="feedback-count">{feedbackMessage.length}/4,000</small>{feedbackError && <p className="form-error" role="alert">{feedbackError}</p>}<button type="button" className="secondary" disabled={feedbackBusy || !feedbackMessage.trim()} onClick={() => void submitFeedback()}>{feedbackBusy ? <LoaderCircle className="spin" /> : <Send />} Submit feedback</button></section>

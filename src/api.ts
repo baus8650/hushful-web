@@ -85,6 +85,7 @@ export const api = {
   updateWishlistAudience: (token: string, wishlistId: string, audience: WishlistAudience) => request<WishlistAudience>(`/v1/wishlists/${wishlistId}/audience`, { method: 'PUT', headers: auth(token), body: JSON.stringify(audience) }),
   wishlistCollaboration: (token: string, wishlistId: string) => request<WishlistCollaboration>(`/v1/wishlists/${wishlistId}/collaborators`, { headers: auth(token) }),
   updateWishlistCollaboration: (token: string, wishlistId: string, mode: 'our_wishlist' | 'gift_planning', userIDs: string[]) => request<WishlistCollaboration>(`/v1/wishlists/${wishlistId}/collaborators`, { method: 'PUT', headers: auth(token), body: JSON.stringify({ mode, userIDs }) }),
+  deleteWishlist: (token: string, id: string) => request<void>(`/v1/wishlists/${id}`, { method: 'DELETE', headers: auth(token) }),
   wishlists: (token: string) => request<Wishlist[]>('/v1/wishlists', { headers: auth(token) }),
   wishlistSettings: (token: string, wishlistId: string) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { headers: auth(token) }),
   updateWishlistSettings: (token: string, wishlistId: string, settings: Partial<WishlistSettings>) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { method: 'PATCH', headers: auth(token), body: JSON.stringify(settings) }),
