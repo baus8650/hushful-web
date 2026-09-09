@@ -29,7 +29,8 @@ export default function App() {
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('hushful.theme', theme) }, [theme])
   const themeToggle = <ThemeToggle theme={theme} toggle={() => setTheme(theme === 'dark' ? 'light' : 'dark')} />
 
-  const logout = useCallback(() => { authStorage.clear(); setToken(null); setUser(null) }, [])
+  const [onboardingActive, setOnboardingActive] = useState(false)
+  const logout = useCallback(() => { authStorage.clear(); setToken(null); setUser(null); setOnboardingActive(false) }, [])
   const onError = useCallback((error: unknown) => {
     if (error instanceof ApiError && error.status === 401) return logout()
     setToast({ message: error instanceof Error ? error.message : 'Something went wrong. Please try again.', kind: 'error' })
@@ -38,7 +39,7 @@ export default function App() {
   useEffect(() => {
     if (!token) return
     setLoading(true)
-    api.me(token).then(setUser).catch(onError).finally(() => setLoading(false))
+    api.me(token).then((loadedUser) => { setUser(loadedUser); setOnboardingActive(!loadedUser.username || !loadedUser.privacySetupCompleted) }).catch(onError).finally(() => setLoading(false))
   }, [token, onError])
   useEffect(() => {
     if (!toast) return
@@ -55,7 +56,7 @@ export default function App() {
   if (guestShareToken) return <>{themeToggle}<GuestShareScreen shareToken={guestShareToken} /></>
   if (loading) return <FullPageLoader />
   if (!token || !user) return <>{themeToggle}<AuthScreen onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} /></>
-  if (!user.username) return <>{themeToggle}<UsernameOnboarding token={token} completed={setUser} logout={logout} /></>
+  if (onboardingActive) return <>{themeToggle}<OnboardingFlow token={token} user={user} userChanged={setUser} finish={() => setOnboardingActive(false)} logout={logout} /></>
   return <>
     {themeToggle}
     <Dashboard token={token} user={user} setUser={setUser} logout={logout} onError={onError} notify={notify} />
@@ -78,11 +79,69 @@ function ThemeToggle({ theme, toggle }: { theme: 'light' | 'dark'; toggle: () =>
   return <button className="theme-toggle" onClick={toggle} aria-label={theme === 'dark' ? 'Use light mode' : 'Use dark mode'} title={theme === 'dark' ? 'Use light mode' : 'Use dark mode'}>{theme === 'dark' ? <Sun /> : <Moon />}</button>
 }
 
-function UsernameOnboarding({ token, completed, logout }: { token: string; completed: (user: CurrentUser) => void; logout: () => void }) {
+type OnboardingStep = 'tour' | 'setup' | 'username' | 'privacy' | 'first-list' | 'guided-list'
+
+function OnboardingFlow({ token, user, userChanged, finish, logout }: { token: string; user: CurrentUser; userChanged: (user: CurrentUser) => void; finish: () => void; logout: () => void }) {
+  const [step, setStep] = useState<OnboardingStep>(() => user.privacySetupCompleted && !user.username ? 'username' : 'tour')
+
+  if (step === 'tour') return <OnboardingTour continueToSetup={() => setStep('setup')} />
+  if (step === 'setup') return <OnboardingSetupWelcome continueToUsername={() => setStep('username')} />
+  if (step === 'username') return <OnboardingUsername token={token} completed={(updated) => { userChanged(updated); setStep('privacy') }} logout={logout} />
+  if (step === 'privacy') return <OnboardingPrivacy token={token} completed={(updated) => { userChanged(updated); setStep('first-list') }} logout={logout} />
+  if (step === 'first-list') return <OnboardingFirstList guide={() => setStep('guided-list')} explore={finish} />
+  return <OnboardingGuidedList token={token} finish={finish} />
+}
+
+function OnboardingTour({ continueToSetup }: { continueToSetup: () => void }) {
+  const [page, setPage] = useState(0)
+  const steps = [
+    { title: 'Thanks for downloading Hushful', text: 'Let’s see what Hushful can do. Follow Penny through the real spaces you’ll use to save wishes and make thoughtful gifts happen.', screen: 'lists' },
+    { title: 'Penny keeps every wish in one place', text: 'Create public or private lists. My Lists makes the privacy of every list clear, while shared planning lists have their own home.', screen: 'wishes' },
+    { title: 'Saving a wish is simple', text: 'Add a link, photo, price, quantity, and note—or share directly from a shopping app. Hushful brings the product price along too.', screen: 'item' },
+    { title: 'Share and coordinate without spoilers', text: 'Choose who can view a list, filter shared ideas by price, add a comment under the items, and @mention people who can access it.', screen: 'discussion' },
+    { title: 'Plan with Penny’s people', text: 'Find friends, make groups, and build a joint gift-planning list. Claims and private notes stay hidden from the recipient.', screen: 'people' },
+    { title: 'Make the next occasion easier', text: 'Use reminders, insights, and list settings to stay ahead. Hushful keeps the logistics quiet so the surprise stays special.', screen: 'planning' },
+  ] as const
+  const current = steps[page]
+  return <main className="auth-page onboarding-page"><section className="auth-card onboarding-card"><Logo /><OnboardingPreview screen={current.screen} /><p className="eyebrow">Hushful tour · {page + 1} of {steps.length}</p><h1>{current.title}</h1><p className="muted">{current.text}</p><div className="tutorial-dots">{steps.map((_, index) => <span key={index} className={index === page ? 'active' : ''} />)}</div><div className="modal-actions spread"><button className="text-button" onClick={continueToSetup}>Skip tour</button><button className="primary" onClick={() => page === steps.length - 1 ? continueToSetup() : setPage(page + 1)}>{page === steps.length - 1 ? 'Let’s set up your account' : 'Next'} <ChevronRight /></button></div></section></main>
+}
+
+function OnboardingPreview({ screen }: { screen: 'lists' | 'wishes' | 'item' | 'discussion' | 'people' | 'planning' }) {
+  const body = screen === 'lists' ? <><TutorialMiniRow title="Penny’s Birthday" detail="Private · My list" /><TutorialMiniRow title="Cozy Favorites" detail="Public · My list" /></>
+    : screen === 'wishes' ? <><TutorialMiniRow title="Penny’s Birthday" detail="Private · 12 wishes" /><TutorialMiniRow title="Gift planning for Penny" detail="Joint list · 4 planners" /></>
+    : screen === 'item' ? <><TutorialMiniRow title="Cloud-soft blanket" detail="$48 · quantity 1 · product link" /><TutorialMiniRow title="Penny’s note" detail="Cream, please — @sam can help" /></>
+    : screen === 'discussion' ? <><TutorialMiniRow title="Discussion" detail="Sam: I’ll take the blanket" /><TutorialMiniRow title="@Morgan" detail="Can you grab the treats? · notified" /></>
+    : screen === 'people' ? <><TutorialMiniRow title="Penny Lou" detail="@penny · friend" /><TutorialMiniRow title="Family gift planners" detail="4 friends · joint list access" /></>
+    : <><TutorialMiniRow title="Penny’s birthday" detail="Reminder: October 5" /><TutorialMiniRow title="List insights" detail="$146 saved · 3 wishes claimed" /></>
+  const title = screen === 'discussion' ? 'Penny’s Birthday · Discussion' : screen === 'people' ? 'People' : screen === 'planning' ? 'Penny’s Birthday · Insights' : screen === 'item' ? 'Penny’s Birthday' : 'My Lists'
+  return <div className="tutorial-preview onboarding-preview"><div className="tutorial-preview-nav"><strong>{title}</strong><div><TutorialCallout icon={screen === 'discussion' ? <MessageCircle /> : screen === 'people' ? <Users /> : <Gift />} label={screen === 'discussion' ? 'Comment' : screen === 'people' ? 'Friends' : 'Hushful'} /></div></div><div className="tutorial-preview-body">{body}</div></div>
+}
+
+function OnboardingSetupWelcome({ continueToUsername }: { continueToUsername: () => void }) {
+  return <main className="auth-page onboarding-page"><section className="auth-card onboarding-card setup-card"><Logo /><User size={58} /><p className="eyebrow">A few quick choices</p><h1>Let’s set up your account</h1><p className="muted">First choose the username friends will use to find you. Then choose the privacy that feels right for you.</p><button className="primary wide" onClick={continueToUsername}>Set up my account <ChevronRight /></button></section></main>
+}
+
+function OnboardingUsername({ token, completed, logout }: { token: string; completed: (user: CurrentUser) => void; logout: () => void }) {
   const [username, setUsername] = useState(''), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const valid = /^[a-z0-9_]{3,30}$/.test(username)
   async function save(e: FormEvent) { e.preventDefault(); if (!valid) return; setBusy(true); setError(''); try { completed(await api.updateProfile(token, { username })) } catch (e) { setError(e instanceof Error ? e.message : 'Unable to save that username.') } finally { setBusy(false) } }
-  return <main className="auth-page"><div className="auth-brand"><Logo /><p>One last step before your wishes.</p></div><section className="auth-card"><div className="eyebrow">Your Hushful identity</div><h1>Choose your permanent username</h1><p className="muted">Friends use this to find you. Choose carefully—your username cannot be changed later. Your email is never shown in search.</p><form className="stack-form" onSubmit={save}><Field label="Username"><div className="username-input"><span>@</span><input autoFocus value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, '_').replace(/[^a-z0-9_]/g, ''))} placeholder="your_username" /></div></Field><p className="hint">3–30 letters, numbers, or underscores. Spaces become underscores. This cannot be changed later.</p>{error && <p className="auth-error" role="alert">{error}</p>}<button className="primary wide" disabled={busy || !valid}>{busy && <LoaderCircle className="spin" />} Continue <ChevronRight /></button><button type="button" className="text-button auth-switch" onClick={logout}>Log out</button></form></section></main>
+  return <main className="auth-page onboarding-page"><div className="auth-brand"><Logo /><p>Your Hushful identity</p></div><section className="auth-card"><h1>Choose your permanent username</h1><p className="muted">Friends use this to find you. Choose carefully—your username cannot be changed later. Your email is never shown in search.</p><form className="stack-form" onSubmit={save}><Field label="Username"><div className="username-input"><span>@</span><input autoFocus value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, '_').replace(/[^a-z0-9_]/g, ''))} placeholder="your_username" /></div></Field><p className="hint">3–30 letters, numbers, or underscores. Spaces become underscores.</p>{error && <p className="auth-error" role="alert">{error}</p>}<button className="primary wide" disabled={busy || !valid}>{busy && <LoaderCircle className="spin" />} Continue <ChevronRight /></button><button type="button" className="text-button auth-switch" onClick={logout}>Log out</button></form></section></main>
+}
+
+function OnboardingPrivacy({ token, completed, logout }: { token: string; completed: (user: CurrentUser) => void; logout: () => void }) {
+  const [discoverable, setDiscoverable] = useState<boolean | null>(null), [policy, setPolicy] = useState<'everyone' | 'friends_of_friends' | 'nobody' | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  async function save(e: FormEvent) { e.preventDefault(); if (discoverable === null || !policy) return; setBusy(true); setError(''); try { completed(await api.updateProfile(token, { isDiscoverable: discoverable, friendRequestPolicy: policy, privacySetupCompleted: true })) } catch (e) { setError(e instanceof Error ? e.message : 'Unable to save your privacy settings.') } finally { setBusy(false) } }
+  return <main className="auth-page onboarding-page"><section className="auth-card onboarding-card"><Logo /><p className="eyebrow">Your privacy</p><h1>Choose how people can find you</h1><p className="muted">You can change both choices anytime in Settings.</p><form className="stack-form" onSubmit={save}><fieldset className="public-choice"><legend>Can people search for your username?</legend><label className="checkbox"><input type="radio" checked={discoverable === true} onChange={() => setDiscoverable(true)} /><span><strong>Yes, let people find me</strong><small>Your email is never shown in search.</small></span></label><label className="checkbox"><input type="radio" checked={discoverable === false} onChange={() => setDiscoverable(false)} /><span><strong>No, keep me hidden</strong></span></label></fieldset><fieldset className="public-choice"><legend>Who can send you a friend request?</legend>{[['everyone', 'Anyone'], ['friends_of_friends', 'Friends of friends'], ['nobody', 'Nobody']].map(([value, label]) => <label className="checkbox" key={value}><input type="radio" checked={policy === value} onChange={() => setPolicy(value as typeof policy)} /><span><strong>{label}</strong></span></label>)}</fieldset>{error && <p className="auth-error" role="alert">{error}</p>}<button className="primary wide" disabled={busy || discoverable === null || !policy}>{busy && <LoaderCircle className="spin" />} Save and continue <ChevronRight /></button><button type="button" className="text-button auth-switch" onClick={logout}>Log out</button></form></section></main>
+}
+
+function OnboardingFirstList({ guide, explore }: { guide: () => void; explore: () => void }) {
+  return <main className="auth-page onboarding-page"><section className="auth-card onboarding-card setup-card"><Logo /><Gift size={58} /><p className="eyebrow">Your next step</p><h1>Ready for your first list?</h1><p className="muted">Penny begins with one simple list. We can make yours together, or you can explore Hushful at your own pace.</p><button className="primary wide" onClick={guide}>Guide me through my first list <ChevronRight /></button><button className="text-button auth-switch" onClick={explore}>I’ll figure it out on my own</button></section></main>
+}
+
+function OnboardingGuidedList({ token, finish }: { token: string; finish: () => void }) {
+  const [title, setTitle] = useState(''), [visibility, setVisibility] = useState<'public' | 'private'>('public'), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  async function create(e: FormEvent) { e.preventDefault(); if (!title.trim()) return; setBusy(true); setError(''); try { await api.createWishlist(token, title.trim(), visibility); finish() } catch (e) { setError(e instanceof Error ? e.message : 'Unable to create your first list.') } finally { setBusy(false) } }
+  return <main className="auth-page onboarding-page"><section className="auth-card onboarding-card"><Logo /><p className="eyebrow">A guided first list</p><h1>Let’s make your first list</h1><p className="muted">Give it a name, then choose whether it starts public or private. You can change this later.</p><form className="stack-form" onSubmit={create}><Field label="1. Name your list"><input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Birthday ideas, Cozy home…" /></Field><fieldset className="public-choice"><legend>2. Choose its privacy</legend><label className="checkbox"><input type="radio" checked={visibility === 'public'} onChange={() => setVisibility('public')} /><span><strong>Public</strong><small>Anyone can view it.</small></span></label><label className="checkbox"><input type="radio" checked={visibility === 'private'} onChange={() => setVisibility('private')} /><span><strong>Private</strong><small>Only people you choose can view it.</small></span></label></fieldset>{error && <p className="auth-error" role="alert">{error}</p>}<button className="primary wide" disabled={busy || !title.trim()}>{busy && <LoaderCircle className="spin" />} Create my first list</button></form></section></main>
 }
 
 function GuestShareScreen({ shareToken }: { shareToken: string }) {
@@ -97,8 +156,9 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   const [mentionCandidates, setMentionCandidates] = useState<SocialUser[]>([])
   const [minimumPrice, setMinimumPrice] = useState('')
   const [maximumPrice, setMaximumPrice] = useState('')
+  const [sort, setSort] = useState<SharedItemSort>('manual')
   const discussionError = useCallback((e: unknown) => setError(e instanceof Error ? e.message : 'Unable to update the discussion.'), [])
-  const visibleRows = rows.filter((row) => priceMatches(row.item, minimumPrice, maximumPrice))
+  const visibleRows = sortSharedRows(rows.filter((row) => priceMatches(row.item, minimumPrice, maximumPrice)), sort)
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -127,7 +187,7 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   return <main className="page detail-page shared-detail guest-shared-detail">
     <header className="page-heading"><div><Logo compact /><p className="eyebrow">Shared by {share?.sharedByName || 'Someone'}</p><h1>{share?.title}</h1><p>No account is needed. Claims and notes stay hidden from the list owner.</p></div><div className="heading-actions"><button className="secondary" onClick={() => void load()}><RefreshCw /> Refresh</button></div></header>
     {error && <p className="auth-error" role="alert">{error}</p>}
-    <PriceFilter minimum={minimumPrice} maximum={maximumPrice} setMinimum={setMinimumPrice} setMaximum={setMaximumPrice} />
+    <PriceFilter minimum={minimumPrice} maximum={maximumPrice} setMinimum={setMinimumPrice} setMaximum={setMaximumPrice} sort={sort} setSort={setSort} />
     {rows.length ? visibleRows.length ? <div className="items-grid">{visibleRows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={() => void update(row.item.id, { note: '', shareName: false })} />)}</div> : <EmptyState icon={<Gift />} title="No wishes match this price filter" text="Try a wider range or clear the filter." /> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
     {viewerToken && <DiscussionPanel shareToken={shareToken} viewerToken={viewerToken} mentionCandidates={mentionCandidates} defaultName="" onError={discussionError} />}
     {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, displayName, shareName }); setIdentity(null) }} />}
@@ -448,9 +508,14 @@ function priceMatches(item: WishlistItem, minimum: string, maximum: string) {
   return (!Number.isFinite(min) || price >= (min as number)) && (!Number.isFinite(max) || price <= (max as number))
 }
 
-function PriceFilter({ minimum, maximum, setMinimum, setMaximum }: { minimum: string; maximum: string; setMinimum: (value: string) => void; setMaximum: (value: string) => void }) {
+type SharedItemSort = 'manual' | 'name' | 'price-low' | 'price-high'
+function sortSharedRows(rows: SharedItemRow[], sort: SharedItemSort) {
+  return [...rows].sort((a, b) => sort === 'name' ? a.item.title.localeCompare(b.item.title) : sort === 'price-low' ? ((a.item.price ?? a.item.contributionGoal ?? Infinity) - (b.item.price ?? b.item.contributionGoal ?? Infinity)) : sort === 'price-high' ? ((b.item.price ?? b.item.contributionGoal ?? -Infinity) - (a.item.price ?? a.item.contributionGoal ?? -Infinity)) : 0)
+}
+
+function PriceFilter({ minimum, maximum, setMinimum, setMaximum, sort, setSort }: { minimum: string; maximum: string; setMinimum: (value: string) => void; setMaximum: (value: string) => void; sort: SharedItemSort; setSort: (value: SharedItemSort) => void }) {
   const active = minimum.trim() || maximum.trim()
-  return <section className="price-filter"><div className="price-filter-heading"><strong>Filter by price</strong><small>Leave Min blank to use Max as a spending limit.</small></div><div className="field-row"><Field label="Minimum"><input inputMode="decimal" value={minimum} onChange={(event) => setMinimum(event.target.value)} placeholder="No minimum" aria-label="Minimum price" /></Field><Field label="Maximum / limit"><input inputMode="decimal" value={maximum} onChange={(event) => setMaximum(event.target.value)} placeholder="No maximum" aria-label="Maximum price or spending limit" /></Field></div>{active && <button className="text-button" onClick={() => { setMinimum(''); setMaximum('') }}>Clear price filter</button>}</section>
+  return <details className="price-filter"><summary><Settings /> Sort &amp; filter {active && <small>Price filter active</small>}</summary><div className="price-filter-content"><Field label="Sort wishes"><select value={sort} onChange={(event) => setSort(event.target.value as SharedItemSort)}><option value="manual">Original order</option><option value="name">Name</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option></select></Field><div className="field-row"><Field label="Minimum"><input inputMode="decimal" value={minimum} onChange={(event) => setMinimum(event.target.value)} placeholder="No minimum" aria-label="Minimum price" /></Field><Field label="Maximum / limit"><input inputMode="decimal" value={maximum} onChange={(event) => setMaximum(event.target.value)} placeholder="No maximum" aria-label="Maximum price or spending limit" /></Field></div><small>Leave Min blank to use Max as a spending limit.</small>{active && <button className="text-button" onClick={() => { setMinimum(''); setMaximum('') }}>Clear price filter</button>}</div></details>
 }
 
 function SharedDetail({ token, accountId, defaultNoteName, share, pinned, togglePin, onError, onRemove, onAdd }: { token: string; accountId: string; defaultNoteName: string; share: SharedWishlist; pinned: boolean; togglePin: () => void; onError: (e: unknown) => void; onRemove: () => void; onAdd: () => Promise<void> }) {
@@ -462,8 +527,9 @@ function SharedDetail({ token, accountId, defaultNoteName, share, pinned, toggle
   const [mentionCandidates, setMentionCandidates] = useState<SocialUser[]>([])
   const [minimumPrice, setMinimumPrice] = useState('')
   const [maximumPrice, setMaximumPrice] = useState('')
+  const [sort, setSort] = useState<SharedItemSort>('manual')
   const [saving, setSaving] = useState(false)
-  const visibleRows = rows.filter((row) => priceMatches(row.item, minimumPrice, maximumPrice))
+  const visibleRows = sortSharedRows(rows.filter((row) => priceMatches(row.item, minimumPrice, maximumPrice)), sort)
   const load = useCallback(async () => { if (!viewerToken && !share.accountShareID) return; setLoading(true); try { setRows(share.accountShareID ? await api.accountSharedItems(token, share.accountShareID) : await api.sharedItems(share.shareToken, viewerToken!)) } catch (e) { onError(e) } finally { setLoading(false) } }, [token, viewerToken, share.shareToken, share.accountShareID, onError])
   useEffect(() => { void load() }, [load])
   useEffect(() => {
@@ -481,7 +547,7 @@ function SharedDetail({ token, accountId, defaultNoteName, share, pinned, toggle
         {share.accountShareID && share.shareToken && <button className="secondary danger-text" onClick={onRemove}><Trash2 /> Remove from account</button>}
       </div>
     </section>
-    <PriceFilter minimum={minimumPrice} maximum={maximumPrice} setMinimum={setMinimumPrice} setMaximum={setMaximumPrice} />
+    <PriceFilter minimum={minimumPrice} maximum={maximumPrice} setMinimum={setMinimumPrice} setMaximum={setMaximumPrice} sort={sort} setSort={setSort} />
     {loading ? <FullPageLoader embedded /> : rows.length ? visibleRows.length ? <div className="items-grid">{visibleRows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={async () => { await update(row.item.id, { note: '', shareName: false }); await load() }} />)}</div> : <EmptyState icon={<Gift />} title="No wishes match this price filter" text="Try a wider range or clear the filter." /> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
     <DiscussionPanel token={token} shareToken={share.shareToken} viewerToken={viewerToken || undefined} accountShareID={share.accountShareID} mentionCandidates={mentionCandidates} defaultName={defaultNoteName} onError={onError} />
     {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, note: identity.note, displayName, shareName }); setIdentity(null) }} />}
@@ -613,15 +679,12 @@ function ModalHeader({ eyebrow, title, close }: { eyebrow?: string; title: strin
 function TutorialModal({ close }: { close: () => void }) {
   const [page, setPage] = useState(0)
   const steps = [
-    { title: 'Meet Penny—and your Hushful spaces', text: 'Overview holds your lists and collaborations. Shared is your complete library from friends. Find people, Friends & groups, Activity, and Account each have a focused home in the sidebar.' },
-    { title: 'Build Penny’s perfect list', text: 'Create a Public or Private wishlist, then add wishes with a link, price, quantity, note, and image. Edit or reorder anything later, and link one item to multiple lists.' },
-    { title: 'Save from almost any shopping app', text: 'On iPhone, open an Amazon, Safari, or store item and tap Share. Choose Hushful—use More if needed—pick Penny’s list, review the title and image, choose additional lists, and tap Add.' },
-    { title: 'Share only the way Penny wants', text: 'Public lists appear on Penny’s profile. Private lists stay hidden unless she selects friends or groups. A guest link lets anyone with the URL coordinate without creating an account.' },
-    { title: 'Find Penny and make a group', text: 'Find people searches names and usernames as you type. Open Penny’s profile and send a request; she approves it in Activity. Friends & groups lets you create Family and choose accepted friends as members.' },
-    { title: 'Plan together without spoilers', text: 'Add co-owners in Owners & purpose. Our Wishlist hides claims from every owner because they are recipients. Gift Planning lets organizers see claims and coordinate purchases together.' },
-    { title: 'Keep Penny’s lists close', text: 'Shared contains friends’ public lists and lists shared privately with you. Filter by Penny’s name, username, or list title, and pin favorites without changing their privacy.' },
-    { title: 'Coordinate the surprise', text: 'Claim the quantity you’re buying and leave recipient notes. Penny cannot see claims or those notes. Shared-list settings control update notifications and whether a guest-link list stays saved.' },
-    { title: 'Private, informed, and in control', text: 'Activity holds friend requests and list updates. Account controls your picture and shows your permanent username, discoverability, and request policy. Hushful confirms destructive actions before anything is removed.' },
+    { title: 'Thanks for downloading Hushful', text: 'Let’s see what Hushful can do. Penny’s My Lists page makes every public and private list easy to scan at a glance.' },
+    { title: 'Build Penny’s list', text: 'Add a link, photo, price, quantity, and note. One wish can live on several lists while its purchase status stays synchronized.' },
+    { title: 'Save from shopping apps', text: 'On iPhone, share from a store to Hushful, then review the title, image, and price before adding it to Penny’s list.' },
+    { title: 'Share on Penny’s terms', text: 'Public lists live on Penny’s profile. Private lists go only to the people and groups she chooses. Shared lists can be filtered by price.' },
+    { title: 'Plan with Penny’s people', text: 'Find friends, make groups, and create joint gift-planning lists. @mentions only offer people who can access the list and notify them.' },
+    { title: 'Coordinate without spoilers', text: 'Claims and recipient notes stay hidden from Penny. Gift-planning lists have an inline discussion below the wishes so planners can communicate together.' },
   ]
   const step = steps[page]
   return <Modal close={close} size="modal-wide"><div className="tutorial"><Logo compact /><TutorialPreview page={page} /><p className="eyebrow">Step {page + 1} of {steps.length}</p><h2>{step.title}</h2><p>{step.text}</p><div className="tutorial-dots">{steps.map((_, index) => <span key={index} className={index === page ? 'active' : ''} />)}</div><div className="modal-actions spread"><button className="text-button" onClick={close}>{page === steps.length - 1 ? 'Close' : 'Skip'}</button><button className="primary" onClick={() => page === steps.length - 1 ? close() : setPage(page + 1)}>{page === steps.length - 1 ? 'Start using Hushful' : 'Next'} <ChevronRight /></button></div></div></Modal>
@@ -790,8 +853,9 @@ function AccountModal({ token, user, userChanged, focusFeedback = false, close, 
   const feedbackPanelRef = useRef<HTMLElement>(null)
   const [metrics, setMetrics] = useState<Awaited<ReturnType<typeof api.metricsSummary>> | null>(null)
   const [feedback, setFeedback] = useState<Awaited<ReturnType<typeof api.adminFeedback>> | null>(null)
+  const [accounts, setAccounts] = useState<Awaited<ReturnType<typeof api.adminAccounts>> | null>(null)
   const [feedbackCategory, setFeedbackCategory] = useState('general'), [feedbackMessage, setFeedbackMessage] = useState(''), [feedbackBusy, setFeedbackBusy] = useState(false), [feedbackError, setFeedbackError] = useState('')
-  useEffect(() => { api.metricsSummary(token).then(setMetrics).catch(() => undefined); api.adminFeedback(token).then(setFeedback).catch(() => undefined) }, [token])
+  useEffect(() => { api.metricsSummary(token).then(setMetrics).catch(() => undefined); api.adminFeedback(token).then(setFeedback).catch(() => undefined); api.adminAccounts(token).then(setAccounts).catch(() => undefined) }, [token])
   useEffect(() => { if (focusFeedback) window.setTimeout(() => feedbackPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0) }, [focusFeedback])
   async function submitFeedback() { const message = feedbackMessage.trim(); if (!message) return; setFeedbackBusy(true); setFeedbackError(''); try { await api.submitFeedback(token, feedbackCategory, message); setFeedbackMessage(''); notify('Thank you—your feedback was received') } catch (e) { setFeedbackError(e instanceof Error ? e.message : 'Unable to submit feedback.') } finally { setFeedbackBusy(false) } }
   async function upload(file?: File) { if (!file) return; if (file.size > 2 * 1024 * 1024) return onError(new Error('Profile pictures must be 2 MB or smaller.')); if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) return onError(new Error('Choose a JPEG, PNG, or WebP image.')); setAvatarBusy(true); try { userChanged(await api.uploadAvatar(token, file)); setAvatarVersion(Date.now()); notify('Profile picture updated') } catch (e) { onError(e) } finally { setAvatarBusy(false) } }
@@ -802,6 +866,7 @@ function AccountModal({ token, user, userChanged, focusFeedback = false, close, 
     <Field label="Display name"><input value={name} onChange={(e) => setName(e.target.value)} onBlur={() => { if (name.trim()) void saveProfile({ displayName: name.trim() }) }} /></Field><Field label="Username"><input value={user.username ? `@${user.username}` : 'Not set'} disabled /></Field><p className="hint">Your username is permanent and cannot be changed.</p><label className="checkbox"><input type="checkbox" checked={discoverable} onChange={(e) => { const value = e.target.checked; setDiscoverable(value); void saveProfile({ isDiscoverable: value }) }} /><span><strong>Let people find my username</strong><small>Your profile picture and username appear in search. Your email never does.</small></span></label><Field label="Friend requests"><select value={policy} onChange={(e) => { const value = e.target.value as CurrentUser['friendRequestPolicy']; setPolicy(value); void saveProfile({ friendRequestPolicy: value }) }}><option value="everyone">Anyone who finds me</option><option value="nobody">Nobody</option></select></Field><Field label="Email"><input value={user.email} disabled /></Field><p className="hint">Profile and privacy changes save automatically.</p>
     <section ref={feedbackPanelRef} className="feedback-panel"><div><strong>Send feedback</strong><small>Ideas, problems, and little details all help make Hushful better.</small></div><Field label="Category"><select value={feedbackCategory} onChange={(e) => setFeedbackCategory(e.target.value)}><option value="general">General</option><option value="idea">Idea</option><option value="problem">Problem</option><option value="praise">Praise</option></select></Field><Field label="Your feedback"><textarea rows={4} maxLength={4000} value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} placeholder="Tell us what’s on your mind…" /></Field><small className="feedback-count">{feedbackMessage.length}/4,000</small>{feedbackError && <p className="form-error" role="alert">{feedbackError}</p>}<button type="button" className="secondary" disabled={feedbackBusy || !feedbackMessage.trim()} onClick={() => void submitFeedback()}>{feedbackBusy ? <LoaderCircle className="spin" /> : <Send />} Submit feedback</button></section>
     {metrics && <section className="metrics-panel"><div><strong>Hushful metrics</strong><small>Last {metrics.days} days · privacy-preserving</small></div><div className="metric-grid"><span><strong>{metrics.totalAccounts}</strong><small>Total accounts</small></span><span><strong>{metrics.newAccounts}</strong><small>New signups</small></span><span><strong>{metrics.visitors}</strong><small>Web visitors</small></span><span><strong>{metrics.views}</strong><small>Page views</small></span></div><div className="metric-paths">{metrics.topPaths.slice(0, 5).map((entry) => <span key={entry.path}><small>{entry.path}</small><strong>{entry.views}</strong></span>)}</div></section>}
+    {accounts && <section className="feedback-admin"><div><strong>Account directory</strong><small>{accounts.length} account{accounts.length === 1 ? '' : 's'} · newest first</small></div>{accounts.length === 0 ? <p className="hint">No accounts created yet.</p> : <div className="feedback-responses">{accounts.map((account) => <article key={account.id}><div><strong>{account.displayName || 'No display name'}</strong><small>{account.createdAt ? new Date(account.createdAt).toLocaleString() : 'Unknown signup date'}</small></div><small>{account.email}</small></article>)}</div>}</section>}
     {feedback && <section className="feedback-admin"><div><strong>User feedback</strong><small>{feedback.length} response{feedback.length === 1 ? '' : 's'}</small></div>{feedback.length === 0 ? <p className="hint">No feedback submitted yet.</p> : <div className="feedback-responses">{feedback.map((entry) => <article key={entry.id}><div><span>{entry.category}</span><small>{entry.platform.toUpperCase()} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'Just now'}</small></div><p>{entry.message}</p><small>{entry.userDisplayName ? `${entry.userDisplayName} · ` : ''}{entry.userEmail || 'Anonymous'}</small></article>)}</div>}</section>}
     <div className="modal-actions spread"><button type="button" className="text-button danger-text" onClick={logout}><LogOut /> Log out</button></div>
     <div className="danger-zone"><strong>Delete account</strong><p>Permanently deletes your wishlists, friendships, groups, activity, and account data.</p><button type="button" className="secondary danger-text" onClick={async () => { const confirmation = window.prompt('This cannot be undone. Type DELETE to permanently delete your account.'); if (confirmation !== 'DELETE') return; try { await api.deleteAccount(token); logout() } catch (e) { onError(e) } }}><Trash2 /> Delete Account</button></div>

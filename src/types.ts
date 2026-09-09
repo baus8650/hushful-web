@@ -1,5 +1,5 @@
 export interface TokenResponse { accessToken: string; tokenType: string; expiresIn: number }
-export interface CurrentUser { id: string; email: string; displayName?: string; username?: string; isDiscoverable: boolean; friendRequestPolicy: 'everyone' | 'nobody'; hasAvatar: boolean; isPro?: boolean }
+export interface CurrentUser { id: string; email: string; displayName?: string; username?: string; isDiscoverable: boolean; friendRequestPolicy: 'everyone' | 'friends_of_friends' | 'nobody'; privacySetupCompleted: boolean; hasAvatar: boolean; isPro?: boolean }
 export interface SocialUser { id: string; username: string; displayName?: string; hasAvatar: boolean }
 export interface Friendship { id: string; user: SocialUser; direction: 'incoming' | 'outgoing'; status: 'pending' | 'accepted' }
 export interface FriendGroup { id: string; name: string; members: SocialUser[] }
@@ -32,6 +32,7 @@ export interface AccountSharedWishlist { id: string; wishlistID: string; title: 
 export interface SharedNote { authorDisplayName?: string; updatedAt?: string; note: string; isMine?: boolean }
 export interface WishlistDiscussionComment { id: string; message: string; authorDisplayName?: string; createdAt?: string; isMine: boolean }
 export interface UserFeedback { id: string; category: string; message: string; platform: string; userID: string; userEmail?: string; userDisplayName?: string; createdAt?: string }
+export interface AdminAccount { id: string; displayName?: string; email: string; createdAt?: string }
 export interface SharedItemRow {
   purchasedByMe: boolean; purchased: boolean; purchasedQuantity?: number; purchasedQuantityByMe?: number; notes: SharedNote[];
   item: WishlistItem
