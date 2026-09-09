@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, Pins, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -58,6 +58,11 @@ export const api = {
   forgotPassword: (email: string) => request<{ message: string }>('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: (token: string, password: string) => request<{ message: string }>('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   me: (token: string) => request<CurrentUser>('/v1/me', { headers: auth(token) }),
+  profileDetails: (token: string) => request<ProfileDetails>('/v1/me/profile-details', { headers: auth(token) }),
+  updateProfileDetails: (token: string, body: { birthdayMonth?: number; birthdayDay?: number; birthdayVisibility?: ProfileDetails['birthdayVisibility']; clearBirthday?: boolean; birthdaySetupCompleted?: boolean }) => request<ProfileDetails>('/v1/me/profile-details', { method: 'PATCH', headers: auth(token), body: JSON.stringify(body) }),
+  createProfileAttribute: (token: string, body: Omit<ProfileAttribute, 'id'>) => request<ProfileAttribute>('/v1/me/profile-attributes', { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
+  updateProfileAttribute: (token: string, id: string, body: Omit<ProfileAttribute, 'id'>) => request<ProfileAttribute>(`/v1/me/profile-attributes/${id}`, { method: 'PUT', headers: auth(token), body: JSON.stringify(body) }),
+  deleteProfileAttribute: (token: string, id: string) => request<void>(`/v1/me/profile-attributes/${id}`, { method: 'DELETE', headers: auth(token) }),
   updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy' | 'privacySetupCompleted' | 'onboardingVersion'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
   deleteAccount: (token: string) => request<void>('/v1/me', { method: 'DELETE', headers: auth(token) }),
   avatarURL: (userId: string) => `${API_URL}/v1/users/${userId}/avatar`,
@@ -88,6 +93,8 @@ export const api = {
   searchUsers: (token: string, q: string) => request<SocialUser[]>(`/v1/users/search?q=${encodeURIComponent(q)}`, { headers: auth(token) }),
   friends: (token: string) => request<Friendship[]>('/v1/friends', { headers: auth(token) }),
   friendProfile: (token: string, userId: string) => request<FriendProfile>(`/v1/users/${userId}/profile`, { headers: auth(token) }),
+  birthdayAlert: (token: string, userId: string) => request<BirthdayAlert>(`/v1/users/${userId}/birthday-alert`, { headers: auth(token) }),
+  updateBirthdayAlert: (token: string, userId: string, enabled: boolean, reminderDaysBefore = 7) => request<BirthdayAlert>(`/v1/users/${userId}/birthday-alert`, { method: 'PUT', headers: auth(token), body: JSON.stringify({ enabled, reminderDaysBefore }) }),
   openPublicWishlist: (token: string, wishlistId: string) => request<AccountSharedWishlist>(`/v1/public-wishlists/${wishlistId}/open`, { method: 'POST', headers: auth(token) }),
   friendRequests: (token: string) => request<Friendship[]>('/v1/friend-requests', { headers: auth(token) }),
   requestFriend: (token: string, userId: string) => request<Friendship>(`/v1/friend-requests/${userId}`, { method: 'POST', headers: auth(token) }),

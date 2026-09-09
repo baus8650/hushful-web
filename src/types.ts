@@ -1,6 +1,6 @@
 export interface TokenResponse { accessToken: string; tokenType: string; expiresIn: number }
 export interface EmailVerificationPendingResponse { email: string; verificationRequired: boolean }
-export interface CurrentUser { id: string; email: string; displayName?: string; username?: string; isDiscoverable: boolean; friendRequestPolicy: 'everyone' | 'friends_of_friends' | 'nobody'; privacySetupCompleted: boolean; onboardingVersion?: number; hasAvatar: boolean; isPro?: boolean }
+export interface CurrentUser { id: string; email: string; displayName?: string; username?: string; isDiscoverable: boolean; friendRequestPolicy: 'everyone' | 'friends_of_friends' | 'nobody'; privacySetupCompleted: boolean; onboardingVersion?: number; birthdaySetupCompleted?: boolean; hasAvatar: boolean; isPro?: boolean }
 export interface SocialUser { id: string; username: string; displayName?: string; hasAvatar: boolean }
 export interface Friendship { id: string; user: SocialUser; direction: 'incoming' | 'outgoing'; status: 'pending' | 'accepted' }
 export interface FriendGroup { id: string; name: string; members: SocialUser[] }
@@ -22,7 +22,10 @@ export interface WishlistSettings {
   icon?: string; colorTheme?: string; isArchived?: boolean; description?: string; customColorHex?: string; reminderDate?: string
 }
 export interface ProfileWishlist { wishlistID: string; title: string; accountShareID?: string }
-export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; sharedWishlists: ProfileWishlist[] }
+export interface ProfileAttribute { id?: string; label: string; value: string; visibility: 'public' | 'friends' | 'private' }
+export interface ProfileDetails { birthdayMonth?: number; birthdayDay?: number; birthdayVisibility: 'public' | 'friends' | 'private'; birthdaySetupCompleted: boolean; attributes: ProfileAttribute[] }
+export interface BirthdayAlert { enabled: boolean; reminderDaysBefore: number }
+export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; sharedWishlists: ProfileWishlist[]; birthdayMonth?: number; birthdayDay?: number; attributes?: ProfileAttribute[]; birthdayAlertEnabled?: boolean; birthdayAlertDaysBefore?: number }
 export interface Pins { wishlistIDs: string[]; userIDs: string[]; groupIDs: string[] }
 export interface WishlistItem {
   id: string; title: string; url?: string; price?: number; ownerNote?: string; quantity?: number;
@@ -37,7 +40,7 @@ export interface UserFeedback { id: string; category: string; message: string; p
 export interface AdminAccount { id: string; displayName?: string; email: string; username?: string; emailVerified?: boolean; onboardingVersion?: number; isPro?: boolean; suspicious?: boolean; createdAt?: string }
 export interface UserReport { id: string; reporterID: string; reporterEmail: string; reportedID: string; reportedEmail: string; reason: string; details: string; createdAt?: string }
 export interface SharedItemRow {
-  purchasedByMe: boolean; purchased: boolean; purchasedByOthers?: boolean; purchasedQuantity?: number; purchasedQuantityByMe?: number; notes: SharedNote[];
+  purchasedByMe: boolean; purchased: boolean; purchasedByOthers?: boolean; purchasedQuantity?: number; purchasedQuantityByMe?: number; purchasedByNames?: string[]; notes: SharedNote[];
   item: WishlistItem
 }
 export interface ShareViewResponse {
