@@ -19,6 +19,7 @@ function metricsVisitorID() {
 export default function App() {
   const publicPage = legalRoute(window.location.pathname)
   const resetToken = new URLSearchParams(window.location.search).get('resetToken')
+  const verificationToken = new URLSearchParams(window.location.search).get('verifyEmailToken')
   const guestShareToken = window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]
   const [token, setToken] = useState<string | null>(authStorage.get())
   const [user, setUser] = useState<CurrentUser | null>(null)
@@ -47,12 +48,13 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
   useEffect(() => {
-    const path = guestShareToken ? '/share' : resetToken ? '/reset-password' : token ? '/app' : '/login'
+    const path = guestShareToken ? '/share' : resetToken ? '/reset-password' : verificationToken ? '/verify-email' : token ? '/app' : '/login'
     void api.trackPageView(metricsVisitorID(), path, Boolean(token)).catch(() => undefined)
-  }, [guestShareToken, resetToken, token])
+  }, [guestShareToken, resetToken, verificationToken, token])
 
   if (publicPage) return <>{themeToggle}<LegalPage page={publicPage} /></>
   if (resetToken) return <>{themeToggle}<ResetPasswordScreen token={resetToken} /></>
+  if (verificationToken) return <>{themeToggle}<VerifyEmailScreen token={verificationToken} onAuthenticated={(accessToken) => { window.history.replaceState({}, '', '/'); authStorage.set(accessToken); setLoading(true); setToken(accessToken) }} /></>
   if (guestShareToken) return <>{themeToggle}<GuestShareScreen shareToken={guestShareToken} /></>
   if (loading) return <FullPageLoader />
   if (!token || !user) return <>{themeToggle}<AuthScreen onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} /></>
@@ -202,6 +204,7 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState('')
   const register = mode === 'register'
   async function submit(e: FormEvent) {
     e.preventDefault(); setBusy(true)
@@ -211,16 +214,31 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
         setMessage(response.message)
         return
       }
-      const response = register ? await api.register(email, password, name.trim()) : await api.login(email, password)
-      onAuthenticated(response.accessToken)
+      if (register) {
+        const response = await api.register(email, password, name.trim())
+        setPendingVerificationEmail(response.email)
+        setMessage('We sent a verification link to your email. Open it to finish creating your account.')
+      } else {
+        onAuthenticated((await api.login(email, password)).accessToken)
+      }
     } catch (error) { onError(error) } finally { setBusy(false) }
+  }
+  async function resendVerification() {
+    setBusy(true)
+    try { setMessage((await api.resendEmailVerification(email || pendingVerificationEmail)).message) }
+    catch (error) { onError(error) } finally { setBusy(false) }
   }
   return <main className="auth-page">
     <div className="auth-brand"><Logo /><p>All the wishes.<br />None of the spoilers.</p></div>
     <section className="auth-card">
-      <div className="eyebrow">{mode === 'forgot' ? 'Account recovery' : register ? 'A fresh start' : 'Welcome back'}</div>
-      <h1>{mode === 'forgot' ? 'Reset your password' : register ? 'Create your account' : 'Sign in to Hushful'}</h1>
-      <p className="muted">{mode === 'forgot' ? 'Enter your email and we’ll send you a secure reset link.' : register ? 'Keep every thoughtful idea in one calm place.' : 'Your wishlists are waiting for you.'}</p>
+      <div className="eyebrow">{pendingVerificationEmail ? 'One more step' : mode === 'forgot' ? 'Account recovery' : register ? 'A fresh start' : 'Welcome back'}</div>
+      <h1>{pendingVerificationEmail ? 'Check your email' : mode === 'forgot' ? 'Reset your password' : register ? 'Create your account' : 'Sign in to Hushful'}</h1>
+      <p className="muted">{pendingVerificationEmail ? `We sent a secure verification link to ${pendingVerificationEmail}. Open it to finish creating your account.` : mode === 'forgot' ? 'Enter your email and we’ll send you a secure reset link.' : register ? 'Keep every thoughtful idea in one calm place.' : 'Your wishlists are waiting for you.'}</p>
+      {pendingVerificationEmail ? <div className="stack-form">
+        {message && <p className="auth-message" role="status">{message}</p>}
+        <button className="primary wide" onClick={() => void resendVerification()} disabled={busy}>{busy && <LoaderCircle className="spin" />} Send another link <RefreshCw /></button>
+        <button className="text-button auth-switch" onClick={() => { setPendingVerificationEmail(''); setMessage(''); setMode('login') }}>Back to sign in</button>
+      </div> : <>
       <form onSubmit={submit} className="stack-form">
         {register && <Field label="Your name"><input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="How friends know you" required /></Field>}
         <Field label="Email"><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required /></Field>
@@ -233,7 +251,9 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
         <GoogleSignInButton onAuthenticated={onAuthenticated} onError={onError} />
       </>}
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode('forgot') }}>Forgot password?</button>}
+      {mode === 'login' && <button className="text-button auth-switch" onClick={() => void resendVerification()} disabled={busy || !email}>Need a verification link?</button>}
       <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
+      </>}
     <p className="hint">The iOS app is awaiting App Store approval. Web payments and Android are coming soon.</p>
     </section>
     <PublicFooter />
@@ -301,6 +321,44 @@ function ResetPasswordScreen({ token }: { token: string }) {
         {error && <p className="auth-error" role="alert">{error}</p>}
         <button className="primary wide" disabled={busy}>{busy && <LoaderCircle className="spin" />} Update password <ChevronRight /></button>
       </form>}
+    </section>
+    <PublicFooter />
+  </main>
+}
+
+function VerifyEmailScreen({ token, onAuthenticated }: { token: string; onAuthenticated: (token: string) => void }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [complete, setComplete] = useState(false)
+  const started = useRef(false)
+
+  async function verify() {
+    setBusy(true); setError('')
+    try {
+      const response = await api.verifyEmail(token)
+      setComplete(true)
+      onAuthenticated(response.accessToken)
+    } catch (e) { setError(e instanceof Error ? e.message : 'Unable to verify your email.') }
+    finally { setBusy(false) }
+  }
+
+  useEffect(() => {
+    if (started.current) return
+    started.current = true
+    void verify()
+  // The link token is immutable for the lifetime of this screen. This is kept
+  // deliberately one-shot so React Strict Mode cannot consume it twice.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return <main className="auth-page">
+    <div className="auth-brand"><Logo /><p>All the wishes.<br />None of the spoilers.</p></div>
+    <section className="auth-card">
+      <div className="eyebrow">Account verification</div>
+      <h1>{complete ? 'Email verified' : 'Verify your email'}</h1>
+      <p className="muted">{complete ? 'You’re all set. Opening Hushful now.' : busy ? 'Confirming your email now…' : 'Confirm that this email belongs to you before starting with Hushful.'}</p>
+      {error && <p className="auth-error" role="alert">{error}</p>}
+      {!complete && <button className="primary wide" onClick={() => void verify()} disabled={busy}>{busy && <LoaderCircle className="spin" />} Verify email <Check /></button>}
     </section>
     <PublicFooter />
   </main>

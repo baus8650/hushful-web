@@ -1,4 +1,5 @@
 export interface TokenResponse { accessToken: string; tokenType: string; expiresIn: number }
+export interface EmailVerificationPendingResponse { email: string; verificationRequired: boolean }
 export interface CurrentUser { id: string; email: string; displayName?: string; username?: string; isDiscoverable: boolean; friendRequestPolicy: 'everyone' | 'friends_of_friends' | 'nobody'; privacySetupCompleted: boolean; hasAvatar: boolean; isPro?: boolean }
 export interface SocialUser { id: string; username: string; displayName?: string; hasAvatar: boolean }
 export interface Friendship { id: string; user: SocialUser; direction: 'incoming' | 'outgoing'; status: 'pending' | 'accepted' }

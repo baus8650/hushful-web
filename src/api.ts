@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, AdminAccount, CurrentUser, FriendGroup, FriendProfile, Friendship, Pins, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, AdminAccount, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, Pins, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -36,9 +36,11 @@ async function itemImageRequest(token: string, wishlistId: string, itemId: strin
 }
 
 export const api = {
-  register: (email: string, password: string, displayName: string) => request<TokenResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
+  register: (email: string, password: string, displayName: string) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
   login: (email: string, password: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   googleLogin: (idToken: string) => request<TokenResponse>('/v1/auth/google', { method: 'POST', body: JSON.stringify({ idToken }) }),
+  verifyEmail: (token: string) => request<TokenResponse>('/v1/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
+  resendEmailVerification: (email: string) => request<{ message: string }>('/v1/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
   forgotPassword: (email: string) => request<{ message: string }>('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: (token: string, password: string) => request<{ message: string }>('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   me: (token: string) => request<CurrentUser>('/v1/me', { headers: auth(token) }),
