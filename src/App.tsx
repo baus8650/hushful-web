@@ -85,6 +85,12 @@ type OnboardingStep = 'tour' | 'setup' | 'username' | 'privacy' | 'first-list' |
 
 function OnboardingFlow({ token, user, userChanged, finish, logout }: { token: string; user: CurrentUser; userChanged: (user: CurrentUser) => void; finish: () => void; logout: () => void }) {
   const [step, setStep] = useState<OnboardingStep>(() => user.privacySetupCompleted && !user.username ? 'username' : 'tour')
+  useEffect(() => {
+    // The full-screen first-run tour and the dashboard's optional tutorial
+    // share the same content. Mark it seen as soon as the first-run flow is
+    // entered so completing setup cannot immediately open it a second time.
+    localStorage.setItem(`hushful.tutorial.v3.seen.${user.id}`, '1')
+  }, [user.id])
 
   if (step === 'tour') return <OnboardingTour continueToSetup={() => setStep('setup')} />
   if (step === 'setup') return <OnboardingSetupWelcome continueToUsername={() => setStep('username')} />
@@ -201,13 +207,20 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
   const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [formError, setFormError] = useState('')
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState('')
   const register = mode === 'register'
   async function submit(e: FormEvent) {
-    e.preventDefault(); setBusy(true)
+    e.preventDefault(); setFormError('')
+    if (register && password !== confirmPassword) {
+      setFormError('The passwords do not match.')
+      return
+    }
+    setBusy(true)
     try {
       if (mode === 'forgot') {
         const response = await api.forgotPassword(email)
@@ -221,7 +234,11 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
       } else {
         onAuthenticated((await api.login(email, password)).accessToken)
       }
-    } catch (error) { onError(error) } finally { setBusy(false) }
+    } catch (error) {
+      if (register && error instanceof ApiError && error.status === 409) {
+        setFormError('An account with this email already exists. Sign in instead, or request a verification link if you still need one.')
+      } else onError(error)
+    } finally { setBusy(false) }
   }
   async function resendVerification() {
     setBusy(true)
@@ -243,16 +260,19 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
         {register && <Field label="Your name"><input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="How friends know you" required /></Field>}
         <Field label="Email"><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required /></Field>
         {mode !== 'forgot' && <Field label="Password"><input type="password" autoComplete={register ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required /></Field>}
+        {register && <Field label="Confirm password"><input type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" required /></Field>}
+        {register && confirmPassword && password !== confirmPassword && <p className="auth-error" role="alert">The passwords do not match.</p>}
+        {formError && <p className="auth-error" role="alert">{formError}</p>}
         {message && <p className="auth-message" role="status">{message}</p>}
-        <button className="primary wide" disabled={busy}>{busy && <LoaderCircle className="spin" />} {mode === 'forgot' ? 'Send reset link' : register ? 'Create account' : 'Sign in'} <ChevronRight /></button>
+        <button className="primary wide" disabled={busy || (register && password !== confirmPassword)}>{busy && <LoaderCircle className="spin" />} {mode === 'forgot' ? 'Send reset link' : register ? 'Create account' : 'Sign in'} <ChevronRight /></button>
       </form>
       {mode !== 'forgot' && <>
         <div className="auth-divider"><span>or</span></div>
         <GoogleSignInButton onAuthenticated={onAuthenticated} onError={onError} />
       </>}
-      {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode('forgot') }}>Forgot password?</button>}
+      {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setFormError(''); setMode('forgot') }}>Forgot password?</button>}
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => void resendVerification()} disabled={busy || !email}>Need a verification link?</button>}
-      <button className="text-button auth-switch" onClick={() => { setMessage(''); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
+      <button className="text-button auth-switch" onClick={() => { setMessage(''); setFormError(''); setConfirmPassword(''); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
       </>}
     <p className="hint">The iOS app is awaiting App Store approval. Web payments and Android are coming soon.</p>
     </section>
