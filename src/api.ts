@@ -49,6 +49,12 @@ async function itemImageRequest(token: string, wishlistId: string, itemId: strin
   if (!response.ok) { const body = await response.text(); let message = body || `Request failed (${response.status})`; try { message = JSON.parse(body).reason ?? message } catch { /* plain response */ }; throw new ApiError(response.status, message) }
 }
 
+async function protectedImage(path: string, accessToken?: string, viewerToken?: string): Promise<Blob> {
+  const response = await fetch(`${API_URL}${path}`, { headers: { ...(accessToken ? auth(accessToken) : {}), ...(viewerToken ? viewer(viewerToken) : {}) } })
+  if (!response.ok) throw new ApiError(response.status, 'Image unavailable')
+  return response.blob()
+}
+
 export const api = {
   register: (email: string, password: string, displayName: string) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName, website: '' }) }),
   login: (email: string, password: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
@@ -59,14 +65,15 @@ export const api = {
   resetPassword: (token: string, password: string) => request<{ message: string }>('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   me: (token: string) => request<CurrentUser>('/v1/me', { headers: auth(token) }),
   profileDetails: (token: string) => request<ProfileDetails>('/v1/me/profile-details', { headers: auth(token) }),
-  updateProfileDetails: (token: string, body: { birthdayMonth?: number; birthdayDay?: number; birthdayVisibility?: ProfileDetails['birthdayVisibility']; clearBirthday?: boolean; birthdaySetupCompleted?: boolean }) => request<ProfileDetails>('/v1/me/profile-details', { method: 'PATCH', headers: auth(token), body: JSON.stringify(body) }),
+  updateProfileDetails: (token: string, body: { matureProfileEnabled?: boolean; birthdayYear?: number; birthdayMonth?: number; birthdayDay?: number; birthdayVisibility?: ProfileDetails['birthdayVisibility']; clearBirthday?: boolean; birthdaySetupCompleted?: boolean }) => request<ProfileDetails>('/v1/me/profile-details', { method: 'PATCH', headers: auth(token), body: JSON.stringify(body) }),
   createProfileAttribute: (token: string, body: Omit<ProfileAttribute, 'id'>) => request<ProfileAttribute>('/v1/me/profile-attributes', { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
   updateProfileAttribute: (token: string, id: string, body: Omit<ProfileAttribute, 'id'>) => request<ProfileAttribute>(`/v1/me/profile-attributes/${id}`, { method: 'PUT', headers: auth(token), body: JSON.stringify(body) }),
   deleteProfileAttribute: (token: string, id: string) => request<void>(`/v1/me/profile-attributes/${id}`, { method: 'DELETE', headers: auth(token) }),
-  updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy' | 'privacySetupCompleted' | 'onboardingVersion'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
+  updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy' | 'privacySetupCompleted' | 'onboardingVersion' | 'showAgeRestrictedLists'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
   deleteAccount: (token: string) => request<void>('/v1/me', { method: 'DELETE', headers: auth(token) }),
   avatarURL: (userId: string) => `${API_URL}/v1/users/${userId}/avatar`,
   itemImageURL: (itemId: string, version?: string) => `${API_URL}/v1/items/${itemId}/image${version ? `?v=${encodeURIComponent(version)}` : ''}`,
+  protectedImage,
   uploadAvatar: (token: string, file: File) => avatarRequest(token, 'PUT', file),
   removeAvatar: (token: string) => avatarRequest(token, 'DELETE'),
   uploadItemImage: (token: string, wishlistId: string, itemId: string, file: File) => itemImageRequest(token, wishlistId, itemId, 'PUT', file),
@@ -104,6 +111,7 @@ export const api = {
   removeFriendship: (token: string, friendshipId: string) => request<void>(`/v1/friendships/${friendshipId}`, { method: 'DELETE', headers: auth(token) }),
   blockUser: (token: string, userId: string) => request<void>(`/v1/blocks/${userId}`, { method: 'PUT', headers: auth(token) }),
   reportUser: (token: string, userId: string, reason: string, details: string) => request<void>(`/v1/reports/users/${userId}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
+  reportSharedWishlist: (token: string, accountShareID: string | undefined, shareToken: string, reason: string, details: string) => request<void>(accountShareID ? `/v1/reports/shared-wishlists/${accountShareID}` : `/v1/reports/share-links/${shareToken}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
   friendGroups: (token: string) => request<FriendGroup[]>('/v1/friend-groups', { headers: auth(token) }),
   createFriendGroup: (token: string, name: string) => request<FriendGroup>('/v1/friend-groups', { method: 'POST', headers: auth(token), body: JSON.stringify({ name }) }),
   addGroupMember: (token: string, groupId: string, userId: string) => request<FriendGroup>(`/v1/friend-groups/${groupId}/members/${userId}`, { method: 'PUT', headers: auth(token) }),
@@ -140,7 +148,7 @@ export const api = {
   },
   deleteItem: (token: string, wishlistId: string, itemId: string) => request<void>(`/v1/wishlists/${wishlistId}/items/${itemId}`, { method: 'DELETE', headers: auth(token) }),
   createShare: (token: string, id: string) => request<{ shareToken: string }>(`/v1/wishlists/${id}/shares`, { method: 'POST', headers: auth(token) }),
-  openShare: (shareToken: string, viewerToken?: string) => request<ShareViewResponse>(`/v1/shares/${shareToken}`, { headers: viewerToken ? viewer(viewerToken) : {} }),
+  openShare: (shareToken: string, viewerToken?: string, accessToken?: string) => request<ShareViewResponse>(`/v1/shares/${shareToken}`, { headers: { ...(viewerToken ? viewer(viewerToken) : {}), ...(accessToken ? auth(accessToken) : {}) } }),
   accountShares: (token: string) => request<AccountSharedWishlist[]>('/v1/shared-wishlists', { headers: auth(token) }),
   saveAccountShare: (token: string, shareToken: string, viewerToken?: string) => request<AccountSharedWishlist>(`/v1/shared-wishlists/open/${shareToken}`, { method: 'POST', headers: { ...auth(token), ...(viewerToken ? viewer(viewerToken) : {}) } }),
   removeAccountShare: (token: string, id: string) => request<void>(`/v1/shared-wishlists/${id}`, { method: 'DELETE', headers: auth(token) }),
@@ -151,6 +159,7 @@ export const api = {
   createAccountDiscussionComment: (token: string, shareId: string, body: { message: string; displayName?: string; shareName: boolean }) => request<WishlistDiscussionComment>(`/v1/shared-wishlists/${shareId}/discussion`, { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
   deleteAccountDiscussionComment: (token: string, shareId: string, commentId: string) => request<void>(`/v1/shared-wishlists/${shareId}/discussion/${commentId}`, { method: 'DELETE', headers: auth(token) }),
   sharedItems: (shareToken: string, viewerToken: string) => request<SharedItemRow[]>(`/v1/shares/${shareToken}/items`, { headers: viewer(viewerToken) }),
+  confirmAdultShare: (shareToken: string, viewerToken: string, accessToken?: string) => request<ShareViewResponse>(`/v1/shares/${shareToken}/confirm-adult`, { method: 'POST', headers: { ...viewer(viewerToken), ...(accessToken ? auth(accessToken) : {}) }, body: JSON.stringify({ confirmedAdult: true }) }),
   updateSharedItem: (shareToken: string, itemId: string, viewerToken: string, body: { purchased?: boolean; purchasedQuantity?: number; note?: string; displayName?: string; shareName?: boolean }) => request<SharedItemRow>(`/v1/shares/${shareToken}/items/${itemId}/state`, { method: 'PUT', headers: viewer(viewerToken), body: JSON.stringify(body) }),
   mentionCandidates: (shareToken: string, viewerToken: string) => request<SocialUser[]>(`/v1/shares/${shareToken}/mention-candidates`, { headers: viewer(viewerToken) }),
   discussion: (shareToken: string, viewerToken: string) => request<WishlistDiscussionComment[]>(`/v1/shares/${shareToken}/discussion`, { headers: viewer(viewerToken) }),

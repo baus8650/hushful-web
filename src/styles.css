@@ -189,6 +189,10 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .metrics-panel>div:first-child strong,.metrics-panel>div:first-child small { display:block; }.metrics-panel>div:first-child small{color:var(--muted);margin-top:3px}
 .metric-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }.metric-grid span{padding:11px;background:var(--paper);border-radius:10px}.metric-grid strong,.metric-grid small{display:block}.metric-grid strong{font-size:1.2rem}.metric-grid small{color:var(--muted);margin-top:2px}
 .feedback-panel,.feedback-admin { border:1px solid var(--line); border-radius:16px; padding:16px; background:var(--cream); display:grid; gap:13px; }
+.safety-panel { border:1px solid color-mix(in srgb, var(--sage) 35%, var(--line)); border-radius:16px; padding:16px; background:color-mix(in srgb, var(--sage) 8%, var(--cream)); display:grid; gap:12px; }
+.safety-panel-heading { display:flex; gap:10px; align-items:flex-start; }.safety-panel-heading svg { color:var(--sage-dark); flex:0 0 auto; margin-top:2px; }.safety-panel-heading strong,.safety-panel-heading small { display:block; }.safety-panel-heading small { color:var(--muted); margin-top:3px; }
+.safety-panel ul { margin:0; padding-left:20px; display:grid; gap:7px; line-height:1.45; font-size:.86rem; }.safety-panel .text-button { justify-self:start; }
+.public-warning { display:flex; gap:8px; align-items:flex-start; margin:0; padding:11px 12px; border-radius:12px; background:color-mix(in srgb, #d89d54 14%, var(--cream)); color:var(--ink); font-size:.82rem; line-height:1.45; }.public-warning svg { flex:0 0 auto; width:17px; color:#9b641d; margin-top:1px; }
 .feedback-panel>div:first-child strong,.feedback-panel>div:first-child small,.feedback-admin>div:first-child strong,.feedback-admin>div:first-child small { display:block; }
 .feedback-panel>div:first-child small,.feedback-admin>div:first-child small { color:var(--muted); margin-top:3px; }
 .feedback-panel .secondary { justify-self:start; }.feedback-count{text-align:right;color:var(--muted)}

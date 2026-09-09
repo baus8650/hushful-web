@@ -1,6 +1,6 @@
 import { ArrowLeft, ExternalLink, Gift, Mail, ShieldCheck, Sparkles } from 'lucide-react'
 
-export type PublicPage = 'privacy' | 'terms' | 'support' | 'press'
+export type PublicPage = 'privacy' | 'terms' | 'support' | 'press' | 'safety'
 
 export function legalRoute(pathname: string): PublicPage | null {
   const route = pathname.replace(/\/+$/, '') || '/'
@@ -8,6 +8,7 @@ export function legalRoute(pathname: string): PublicPage | null {
   if (route === '/terms') return 'terms'
   if (route === '/support' || route === '/account-deletion') return 'support'
   if (route === '/press') return 'press'
+  if (route === '/safety') return 'safety'
   return null
 }
 
@@ -18,13 +19,14 @@ export function PublicFooter() {
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
+      <a href="/safety">Community safety</a>
       <a href="/press">Press</a>
     </nav>
   </footer>
 }
 
 export function LegalPage({ page }: { page: PublicPage }) {
-  const content = page === 'privacy' ? <Privacy /> : page === 'terms' ? <Terms /> : page === 'support' ? <Support /> : <Press />
+  const content = page === 'privacy' ? <Privacy /> : page === 'terms' ? <Terms /> : page === 'support' ? <Support /> : page === 'safety' ? <Safety /> : <Press />
   return <div className="public-shell">
     <header className="public-header">
       <a className="public-logo" href="/" aria-label="Hushful home"><span><Sparkles /></span><strong>hushful</strong></a>
@@ -60,7 +62,7 @@ function Terms() {
     <section><h2>Accepting these terms</h2><p>By downloading, accessing, or using Hushful, you agree to these Terms and our <a href="/privacy">Privacy Policy</a>. If you do not agree, do not use Hushful. You must be at least 13 and legally able to agree to these Terms. If you use Hushful for an organization, you represent that you can bind that organization.</p></section>
     <section><h2>Your account</h2><p>Provide accurate information, protect your credentials, and tell us promptly if you believe your account has been compromised. You are responsible for activity through your account. Usernames may be permanent. You may delete your account at any time in Account settings.</p></section>
     <section><h2>Your content and permission to operate Hushful</h2><p>You retain ownership of content you submit. You give Hushful a worldwide, non-exclusive, royalty-free license to host, store, reproduce, format, transmit, and display that content only as needed to operate, secure, and improve the Service and to share it according to your settings. This license ends when the content is deleted, except for temporary backups, content others independently retained, or records we must lawfully keep.</p><p>You represent that you have the rights needed to submit your content. Product names, images, and links may belong to their respective owners; Hushful is not affiliated with or endorsed by linked merchants unless stated.</p></section>
-    <section><h2>Acceptable use</h2><p>Do not use Hushful to violate law or another person’s rights; harass, threaten, defraud, or impersonate others; publish illegal, infringing, deceptive, or malicious content; expose another person’s sensitive information without permission; probe or bypass security; scrape or overload the Service; distribute malware or spam; manipulate purchases or gift claims; or help anyone do these things. We may remove content, limit access, or suspend accounts to protect the Service and its users.</p></section>
+    <section><h2>Acceptable use</h2><p>Do not use Hushful to violate law or another person’s rights; groom or sexually exploit a minor; share non-consensual intimate content; harass, threaten, defraud, or impersonate others; promote hate; publish illegal, infringing, deceptive, or malicious content; expose another person’s sensitive information without permission; probe or bypass security; scrape or overload the Service; distribute malware or spam; manipulate purchases or gift claims; or help anyone do these things. We may remove content, limit access, or suspend accounts to protect the Service and its users.</p></section>
     <section><h2>Sharing, merchants, and gifts</h2><p>You control your sharing settings and are responsible for people you invite and links you distribute. Anyone who receives a guest link may be able to forward it. Hushful helps people organize ideas and coordinate gifts; it is not a merchant, payment processor, escrow service, or party to transactions with third-party stores. Prices, availability, links, delivery, refunds, taxes, and product quality are controlled by third parties. Gift claims and notes are coordination aids and are not guarantees of purchase or secrecy.</p></section>
     <section><h2>Hushful Pro and Apple terms</h2><p>Hushful Pro is currently offered as a one-time, non-consumable in-app purchase. The displayed price is provided by Apple and may vary by country. Payment is charged to your Apple Account. Purchases are processed under Apple’s terms and refund policies and can be restored for an eligible Apple Account. Features may evolve, but we will not convert a completed one-time purchase into a recurring charge.</p><p>For the iOS app, Apple’s standard end-user license agreement applies unless a custom agreement is presented in App Store Connect. Apple is not responsible for providing maintenance or support for Hushful.</p></section>
     <section><h2>Service changes and termination</h2><p>We may change, suspend, or discontinue features, introduce reasonable limits, or end the Service. We aim to provide notice of material changes when practical. You may stop using Hushful at any time. We may suspend or terminate access for material or repeated violations, legal requirements, security threats, or harm to others. Sections that by their nature should survive termination—including ownership, disclaimers, liability limits, and dispute provisions—will survive.</p></section>
@@ -80,6 +82,17 @@ function Support() {
       <section className="support-card"><Gift /><h2>Restore Hushful Pro</h2><p>Sign in to the Hushful account you used for Pro, open the Pro screen, and choose <strong>Restore Purchase</strong>. Use the Apple Account that made the original purchase.</p></section>
     </div>
     <section><h2>Common questions</h2><h3>Who can see a private wishlist?</h3><p>Only people you select and people who possess an active guest link. Revoke a guest link if it was shared more widely than intended.</p><h3>Can the list owner see gift claims?</h3><p>Hushful is designed to hide claims and recipient notes from the gift recipient while allowing eligible gift planners to coordinate.</p><h3>How do I control notifications?</h3><p>Use Hushful’s notification settings for list updates and reminders. You can also disable Hushful notifications in iOS Settings.</p><h3>How do I report a safety or privacy issue?</h3><p>Email <a href="mailto:support@hushful-app.com?subject=Hushful%20privacy%20or%20safety">support@hushful-app.com</a>. Include the relevant username or share link, but do not include passwords or payment-card details.</p></section>
+  </main>
+}
+
+function Safety() {
+  return <main className="legal-page safety-page">
+    <PageIntro eyebrow="Share with confidence" title="Community safety & privacy" summary="Hushful gives you control over who can find you, who can view a list, and who can join a conversation. Here is exactly what each choice means." />
+    <section><h2>Public and private mean different things</h2><ul><li><strong>Public list:</strong> anyone can view it. It may appear on your public profile and can be found by people who can access your profile.</li><li><strong>Private list:</strong> it is hidden from public profiles and search. Only the people or groups you select can open it inside Hushful.</li><li><strong>Guest link:</strong> anyone who has the link can view the list, even without an account, and can forward it. Treat a guest link like a public key and revoke it if it travels too far.</li></ul><p>Changing a list to private does not erase information someone already saw, copied, or saved.</p></section>
+    <section><h2>Your profile and personal details</h2><ul><li>Profile discoverability is off by default. When it is off, people cannot search for your username.</li><li>When discoverability is on, your username and profile picture can appear in search. Your email address is never shown there.</li><li>Hushful asks for your full birthday during account setup. It is private by default: only the month and day can be shared, while the birth year stays on the server for age-range safety checks and is never shown to other users.</li><li>Birthdays and custom profile attributes are private by default. Each one has its own visibility choice: public, friends, or only you.</li><li>Only share details such as sizes or preferences when you are comfortable with the selected audience.</li><li>Hushful derives an adult or under-18 age range from the private birthday. Adult users may choose to limit their profile or individual lists to adults; those flagged profiles and lists are hidden from under-18 accounts and accounts without a completed birthday. A user’s age is not displayed.</li></ul></section>
+    <section><h2>Keep conversations comfortable</h2><p>Comments and item notes are visible to people who can access that list. Mentions are limited to people who can access the same list, and the tagged person receives a notification. Do not share another person’s private information without permission.</p><p>Private list content is not automatically scanned. That protects private conversations from invasive inspection, but it also means you should report anything unsafe or inappropriate that you see.</p></section>
+    <section><h2>Block and report</h2><p>Open a person’s profile to block them or report their account. A block stops further contact through Hushful. Reports are reviewed by Hushful administrators and may lead to content removal, access limits, or account suspension when appropriate.</p><p>Hushful prohibits grooming, sexual exploitation of minors, non-consensual intimate content, threats, hate, harassment, doxxing, scams, and other illegal or abusive material. Hushful cannot guarantee that every harmful, adult, deceptive, or offensive item will be caught automatically. If something feels unsafe, do not engage with it—block the account and report it from the app, or contact <a href="mailto:support@hushful-app.com?subject=Hushful%20safety%20report">support@hushful-app.com</a>.</p></section>
+    <section><h2>For families</h2><p>Hushful is not directed to children under 13. Adults should review public profiles, public lists, guest links, and friend connections before sharing them with children. Use private lists and keep discoverability off when you want a smaller circle.</p></section>
   </main>
 }
 
