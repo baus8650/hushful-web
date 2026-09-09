@@ -34,7 +34,7 @@ export interface WishlistDiscussionComment { id: string; message: string; author
 export interface UserFeedback { id: string; category: string; message: string; platform: string; userID: string; userEmail?: string; userDisplayName?: string; createdAt?: string }
 export interface AdminAccount { id: string; displayName?: string; email: string; createdAt?: string }
 export interface SharedItemRow {
-  purchasedByMe: boolean; purchased: boolean; purchasedQuantity?: number; purchasedQuantityByMe?: number; notes: SharedNote[];
+  purchasedByMe: boolean; purchased: boolean; purchasedByOthers?: boolean; purchasedQuantity?: number; purchasedQuantityByMe?: number; notes: SharedNote[];
   item: WishlistItem
 }
 export interface ShareViewResponse {

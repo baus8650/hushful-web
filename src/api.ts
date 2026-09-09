@@ -90,6 +90,7 @@ export const api = {
   wishlistDiscussionMentionCandidates: (token: string, wishlistId: string) => request<SocialUser[]>(`/v1/wishlists/${wishlistId}/discussion/mention-candidates`, { headers: auth(token) }),
   createWishlistDiscussionComment: (token: string, wishlistId: string, body: { message: string; displayName?: string; shareName: boolean }) => request<WishlistDiscussionComment>(`/v1/wishlists/${wishlistId}/discussion`, { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
   deleteWishlistDiscussionComment: (token: string, wishlistId: string, commentId: string) => request<void>(`/v1/wishlists/${wishlistId}/discussion/${commentId}`, { method: 'DELETE', headers: auth(token) }),
+  giftPlanningItems: (token: string, wishlistId: string) => request<SharedItemRow[]>(`/v1/wishlists/${wishlistId}/planning-items`, { headers: auth(token) }),
   deleteWishlist: (token: string, id: string) => request<void>(`/v1/wishlists/${id}`, { method: 'DELETE', headers: auth(token) }),
   wishlists: (token: string) => request<Wishlist[]>('/v1/wishlists', { headers: auth(token) }),
   wishlistSettings: (token: string, wishlistId: string) => request<WishlistSettings>(`/v1/wishlists/${wishlistId}/settings`, { headers: auth(token) }),

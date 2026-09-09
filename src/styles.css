@@ -196,6 +196,7 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .feedback-responses article { padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--paper); }
 .feedback-responses article>div { display:flex; justify-content:space-between; gap:12px; }.feedback-responses article>div span{text-transform:capitalize;font-weight:700;color:var(--sage-dark)}
 .feedback-responses article p { margin:9px 0; white-space:pre-wrap; line-height:1.45; }.feedback-responses article small{color:var(--muted)}
+.planning-purchase-status { display:flex; align-items:center; gap:5px; margin-top:5px; color:var(--sage-dark); font-weight:700; }.planning-purchase-status svg { width:14px; height:14px; }
 .metric-paths { display:grid; gap:5px; }.metric-paths span{display:flex;justify-content:space-between;gap:12px}.metric-paths small{color:var(--muted)}
 
 .modal-backdrop { position:fixed; inset:0; background:rgba(33,35,30,.38); backdrop-filter:blur(5px); z-index:50; display:grid; place-items:center; padding:20px; animation:fade .16s ease; }
