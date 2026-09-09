@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, AdminAccount, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, Pins, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, Pins, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 
@@ -7,10 +7,24 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
-  })
+  const method = (options.method || 'GET').toUpperCase()
+  const canRetry = method === 'GET' || method === 'HEAD'
+  let response: Response | undefined
+  let lastError: unknown
+  for (let attempt = 0; attempt < (canRetry ? 3 : 1); attempt += 1) {
+    try {
+      response = await fetch(`${API_URL}${path}`, {
+        ...options,
+        headers: { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers },
+      })
+      if (!canRetry || response.status < 500 || attempt === 2) break
+    } catch (error) {
+      lastError = error
+      if (attempt === 2 || !canRetry) throw error
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 250 * (attempt + 1)))
+  }
+  if (!response) throw (lastError instanceof Error ? lastError : new Error('Unable to connect to Hushful.'))
   if (!response.ok) {
     const body = await response.text()
     let message = body || `Request failed (${response.status})`
@@ -36,7 +50,7 @@ async function itemImageRequest(token: string, wishlistId: string, itemId: strin
 }
 
 export const api = {
-  register: (email: string, password: string, displayName: string) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) }),
+  register: (email: string, password: string, displayName: string) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName, website: '' }) }),
   login: (email: string, password: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   googleLogin: (idToken: string) => request<TokenResponse>('/v1/auth/google', { method: 'POST', body: JSON.stringify({ idToken }) }),
   verifyEmail: (token: string) => request<TokenResponse>('/v1/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
@@ -44,7 +58,7 @@ export const api = {
   forgotPassword: (email: string) => request<{ message: string }>('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: (token: string, password: string) => request<{ message: string }>('/v1/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
   me: (token: string) => request<CurrentUser>('/v1/me', { headers: auth(token) }),
-  updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy' | 'privacySetupCompleted'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
+  updateProfile: (token: string, profile: Partial<Pick<CurrentUser, 'displayName' | 'username' | 'isDiscoverable' | 'friendRequestPolicy' | 'privacySetupCompleted' | 'onboardingVersion'>>) => request<CurrentUser>('/v1/me', { method: 'PATCH', headers: auth(token), body: JSON.stringify(profile) }),
   deleteAccount: (token: string) => request<void>('/v1/me', { method: 'DELETE', headers: auth(token) }),
   avatarURL: (userId: string) => `${API_URL}/v1/users/${userId}/avatar`,
   itemImageURL: (itemId: string, version?: string) => `${API_URL}/v1/items/${itemId}/image${version ? `?v=${encodeURIComponent(version)}` : ''}`,
@@ -56,8 +70,10 @@ export const api = {
   metricsSummary: (token: string, days = 30) => request<{ days: number; views: number; visitors: number; signedInViews: number; totalAccounts: number; newAccounts: number; daily: Array<{ date: string; views: number; visitors: number; signups: number }>; topPaths: Array<{ path: string; views: number }> }>(`/v1/metrics/summary?days=${days}`, { headers: auth(token) }),
   submitFeedback: (token: string, category: string, message: string) => request<UserFeedback>('/v1/feedback', { method: 'POST', headers: auth(token), body: JSON.stringify({ category, message, platform: 'web', shareName: false }) }),
   adminFeedback: (token: string) => request<UserFeedback[]>('/v1/admin/feedback', { headers: auth(token) }),
-  adminAccounts: (token: string) => request<AdminAccount[]>('/v1/metrics/accounts', { headers: auth(token) }),
+  adminAccounts: (token: string, query = '') => request<AdminAccount[]>('/v1/metrics/accounts?limit=1000' + (query ? '&q=' + encodeURIComponent(query) : ''), { headers: auth(token) }),
+  adminReports: (token: string) => request<UserReport[]>('/v1/admin/reports', { headers: auth(token) }),
   activity: (token: string) => request<ActivityItem[]>('/v1/activity', { headers: auth(token) }),
+  unreadActivityCount: (token: string) => request<ActivityUnreadCount>('/v1/activity/unread-count', { headers: auth(token) }),
   readActivity: (token: string, id: string) => request<ActivityItem>(`/v1/activity/${id}/read`, { method: 'POST', headers: auth(token) }),
   readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
   deleteActivity: (token: string, id: string) => request<void>(`/v1/activity/${id}`, { method: 'DELETE', headers: auth(token) }),
@@ -80,6 +96,7 @@ export const api = {
   declineFriendFrom: (token: string, userId: string) => request<void>(`/v1/friend-requests/from/${userId}`, { method: 'DELETE', headers: auth(token) }),
   removeFriendship: (token: string, friendshipId: string) => request<void>(`/v1/friendships/${friendshipId}`, { method: 'DELETE', headers: auth(token) }),
   blockUser: (token: string, userId: string) => request<void>(`/v1/blocks/${userId}`, { method: 'PUT', headers: auth(token) }),
+  reportUser: (token: string, userId: string, reason: string, details: string) => request<void>(`/v1/reports/users/${userId}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
   friendGroups: (token: string) => request<FriendGroup[]>('/v1/friend-groups', { headers: auth(token) }),
   createFriendGroup: (token: string, name: string) => request<FriendGroup>('/v1/friend-groups', { method: 'POST', headers: auth(token), body: JSON.stringify({ name }) }),
   addGroupMember: (token: string, groupId: string, userId: string) => request<FriendGroup>(`/v1/friend-groups/${groupId}/members/${userId}`, { method: 'PUT', headers: auth(token) }),
