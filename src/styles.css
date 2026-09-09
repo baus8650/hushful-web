@@ -166,6 +166,11 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .discussion-empty { min-height:90px; display:flex; align-items:center; justify-content:center; gap:8px; text-align:center; color:var(--muted); font-size:.84rem; }
 .discussion-composer { padding:16px 19px 18px; border-top:1px solid var(--line); background:var(--cream); }
 .discussion-composer textarea { width:100%; resize:vertical; min-height:76px; }
+.mention-editor { display:flex; flex-direction:column; gap:7px; }
+.mention-editor textarea { border:1px solid var(--line); border-radius:12px; background:var(--paper); color:var(--ink); padding:13px 14px; line-height:1.45; }
+.mention-suggestions { display:flex; gap:7px; overflow-x:auto; padding:1px 0 3px; }
+.mention-suggestions button { border:1px solid #cbbbd0; border-radius:999px; background:#eee8f1; color:var(--sage-dark); padding:6px 10px; cursor:pointer; white-space:nowrap; font-size:.75rem; font-weight:700; }
+.mention-suggestions button:hover { background:#e4dbe8; }
 .discussion-identity { margin-top:11px; display:flex; align-items:center; gap:12px; }.discussion-identity .checkbox { margin-right:auto; }.discussion-identity>input { width:180px; }.discussion-identity .primary { white-space:nowrap; }
 .item-image-editor { display:flex; gap:16px; align-items:center; }
 .item-image-preview { width:88px; height:88px; flex:0 0 88px; border-radius:16px; overflow:hidden; display:grid; place-items:center; color:var(--sage); background:#e8ddd3; }
@@ -294,6 +299,8 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 [data-theme="dark"] .secondary:hover { background:#302c33; border-color:#5c5360; }
 [data-theme="dark"] .activity-item,[data-theme="dark"] .public-choice,[data-theme="dark"] .guest-link-option,[data-theme="dark"] .notes,[data-theme="dark"] .copy-field,[data-theme="dark"] .avatar-editor { background:#211f23; }
 [data-theme="dark"] .discussion-title>span { background:#3a3040; }
+[data-theme="dark"] .mention-editor textarea { background:#211f23; color:var(--ink); border-color:var(--line); }
+[data-theme="dark"] .mention-suggestions button { background:#3a3040; color:#eadff0; border-color:#675875; }
 
 @media (max-width: 680px) {
   .discussion-heading,.discussion-identity { align-items:stretch; flex-direction:column; }
