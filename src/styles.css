@@ -144,6 +144,9 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .item-card-actions { display:flex; flex-direction:column; gap:3px; }
 .edit-button,.delete-button { width:38px; height:38px; border:0; border-radius:50%; background:transparent; color:#a6a49d; cursor:pointer; opacity:0; transition:.2s; }.item-card:hover .edit-button,.item-card:hover .delete-button{opacity:1}.edit-button:hover{background:#eee8f1;color:var(--sage-dark)}.delete-button:hover{background:#f5e8e4;color:#9b5f53}
 .shared-item { grid-template-columns:55px 1fr; }.shared-item.purchased:not(:has(.mine)){opacity:.65}.shared-item.purchased .item-icon{background:#e3dce7;color:#74647e}
+.price-filter { display:flex; flex-direction:column; gap:10px; margin:0 0 24px; padding:16px 18px; border:1px solid var(--line); border-radius:16px; background:var(--paper); }
+.price-filter-heading strong,.price-filter-heading small { display:block; }.price-filter-heading small { margin-top:3px; color:var(--muted); font-size:.75rem; }
+.price-filter .field-row { margin:0; }.price-filter .text-button { align-self:flex-start; }
 .item-actions { display:flex; gap:16px; align-items:center; margin-top:14px; }
 .claim-button { border:1px solid #b7aabe; color:var(--sage-dark); background:white; padding:8px 14px; border-radius:999px; font-size:.78rem; font-weight:600; cursor:pointer; display:flex; gap:6px; align-items:center; }.claim-button.mine{background:var(--sage);color:white;border-color:var(--sage)}.claim-button svg{width:14px}
 .quantity-choice { display:flex; align-items:center; gap:9px; color:var(--sage-dark); font-size:.8rem; font-weight:600; }
@@ -299,6 +302,7 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 [data-theme="dark"] .secondary:hover { background:#302c33; border-color:#5c5360; }
 [data-theme="dark"] .activity-item,[data-theme="dark"] .public-choice,[data-theme="dark"] .guest-link-option,[data-theme="dark"] .notes,[data-theme="dark"] .copy-field,[data-theme="dark"] .avatar-editor { background:#211f23; }
 [data-theme="dark"] .discussion-title>span { background:#3a3040; }
+[data-theme="dark"] .price-filter { background:#211f23; }
 [data-theme="dark"] .mention-editor textarea { background:#211f23; color:var(--ink); border-color:var(--line); }
 [data-theme="dark"] .mention-suggestions button { background:#3a3040; color:#eadff0; border-color:#675875; }
 

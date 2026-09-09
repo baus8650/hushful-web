@@ -95,7 +95,10 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   const [identity, setIdentity] = useState<{ itemId: string; purchasedQuantity: number } | null>(null)
   const [noteItem, setNoteItem] = useState<{ itemId: string; note?: string; displayName?: string; shareName?: boolean } | null>(null)
   const [mentionCandidates, setMentionCandidates] = useState<SocialUser[]>([])
+  const [minimumPrice, setMinimumPrice] = useState('')
+  const [maximumPrice, setMaximumPrice] = useState('')
   const discussionError = useCallback((e: unknown) => setError(e instanceof Error ? e.message : 'Unable to update the discussion.'), [])
+  const visibleRows = rows.filter((row) => priceMatches(row.item, minimumPrice, maximumPrice))
 
   const load = useCallback(async () => {
     setLoading(true); setError('')
@@ -124,7 +127,8 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   return <main className="page detail-page shared-detail guest-shared-detail">
     <header className="page-heading"><div><Logo compact /><p className="eyebrow">Shared by {share?.sharedByName || 'Someone'}</p><h1>{share?.title}</h1><p>No account is needed. Claims and notes stay hidden from the list owner.</p></div><div className="heading-actions"><button className="secondary" onClick={() => void load()}><RefreshCw /> Refresh</button></div></header>
     {error && <p className="auth-error" role="alert">{error}</p>}
-    {rows.length ? <div className="items-grid">{rows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={() => void update(row.item.id, { note: '', shareName: false })} />)}</div> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
+    <PriceFilter minimum={minimumPrice} maximum={maximumPrice} setMinimum={setMinimumPrice} setMaximum={setMaximumPrice} />
+    {rows.length ? visibleRows.length ? <div className="items-grid">{visibleRows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={() => void update(row.item.id, { note: '', shareName: false })} />)}</div> : <EmptyState icon={<Gift />} title="No wishes match this price filter" text="Try a wider range or clear the filter." /> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
     {viewerToken && <DiscussionPanel shareToken={shareToken} viewerToken={viewerToken} mentionCandidates={mentionCandidates} defaultName="" onError={discussionError} />}
     {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, displayName, shareName }); setIdentity(null) }} />}
     {noteItem && <NoteModal initial={noteItem} candidates={mentionCandidates} defaultName="" close={() => setNoteItem(null)} save={(note, displayName, shareName) => { const itemId = noteItem.itemId; setNoteItem(null); return update(itemId, { note, displayName, shareName }) }} />}
@@ -435,6 +439,20 @@ function WishlistDetail({ token, wishlist, allWishlists, pinned, togglePin, onRe
   </div>
 }
 
+function priceMatches(item: WishlistItem, minimum: string, maximum: string) {
+  const min = minimum.trim() ? Number(minimum.replace(',', '.')) : undefined
+  const max = maximum.trim() ? Number(maximum.replace(',', '.')) : undefined
+  if (!Number.isFinite(min) && !Number.isFinite(max)) return true
+  const price = item.price ?? item.contributionGoal
+  if (price == null) return false
+  return (!Number.isFinite(min) || price >= (min as number)) && (!Number.isFinite(max) || price <= (max as number))
+}
+
+function PriceFilter({ minimum, maximum, setMinimum, setMaximum }: { minimum: string; maximum: string; setMinimum: (value: string) => void; setMaximum: (value: string) => void }) {
+  const active = minimum.trim() || maximum.trim()
+  return <section className="price-filter"><div className="price-filter-heading"><strong>Filter by price</strong><small>Leave Min blank to use Max as a spending limit.</small></div><div className="field-row"><Field label="Minimum"><input inputMode="decimal" value={minimum} onChange={(event) => setMinimum(event.target.value)} placeholder="No minimum" aria-label="Minimum price" /></Field><Field label="Maximum / limit"><input inputMode="decimal" value={maximum} onChange={(event) => setMaximum(event.target.value)} placeholder="No maximum" aria-label="Maximum price or spending limit" /></Field></div>{active && <button className="text-button" onClick={() => { setMinimum(''); setMaximum('') }}>Clear price filter</button>}</section>
+}
+
 function SharedDetail({ token, accountId, defaultNoteName, share, pinned, togglePin, onError, onRemove, onAdd }: { token: string; accountId: string; defaultNoteName: string; share: SharedWishlist; pinned: boolean; togglePin: () => void; onError: (e: unknown) => void; onRemove: () => void; onAdd: () => Promise<void> }) {
   const viewerToken = shareStorage.viewerToken(accountId, share.shareToken)
   const [rows, setRows] = useState<SharedItemRow[]>([])
@@ -442,7 +460,10 @@ function SharedDetail({ token, accountId, defaultNoteName, share, pinned, toggle
   const [identity, setIdentity] = useState<{ itemId: string; purchasedQuantity?: number; note?: string } | null>(null)
   const [noteItem, setNoteItem] = useState<{ itemId: string; note?: string; displayName?: string; shareName?: boolean } | null>(null)
   const [mentionCandidates, setMentionCandidates] = useState<SocialUser[]>([])
+  const [minimumPrice, setMinimumPrice] = useState('')
+  const [maximumPrice, setMaximumPrice] = useState('')
   const [saving, setSaving] = useState(false)
+  const visibleRows = rows.filter((row) => priceMatches(row.item, minimumPrice, maximumPrice))
   const load = useCallback(async () => { if (!viewerToken && !share.accountShareID) return; setLoading(true); try { setRows(share.accountShareID ? await api.accountSharedItems(token, share.accountShareID) : await api.sharedItems(share.shareToken, viewerToken!)) } catch (e) { onError(e) } finally { setLoading(false) } }, [token, viewerToken, share.shareToken, share.accountShareID, onError])
   useEffect(() => { void load() }, [load])
   useEffect(() => {
@@ -460,7 +481,8 @@ function SharedDetail({ token, accountId, defaultNoteName, share, pinned, toggle
         {share.accountShareID && share.shareToken && <button className="secondary danger-text" onClick={onRemove}><Trash2 /> Remove from account</button>}
       </div>
     </section>
-    {loading ? <FullPageLoader embedded /> : rows.length ? <div className="items-grid">{rows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={async () => { await update(row.item.id, { note: '', shareName: false }); await load() }} />)}</div> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
+    <PriceFilter minimum={minimumPrice} maximum={maximumPrice} setMinimum={setMinimumPrice} setMaximum={setMaximumPrice} />
+    {loading ? <FullPageLoader embedded /> : rows.length ? visibleRows.length ? <div className="items-grid">{visibleRows.map((row) => <SharedItemCard key={row.item.id} row={row} chooseQuantity={(quantity) => quantity === 0 ? void update(row.item.id, { purchasedQuantity: 0 }) : setIdentity({ itemId: row.item.id, purchasedQuantity: quantity })} editNote={(note) => setNoteItem({ itemId: row.item.id, note: note?.note, displayName: note?.authorDisplayName, shareName: Boolean(note?.authorDisplayName) })} removeNote={async () => { await update(row.item.id, { note: '', shareName: false }); await load() }} />)}</div> : <EmptyState icon={<Gift />} title="No wishes match this price filter" text="Try a wider range or clear the filter." /> : <EmptyState icon={<Gift />} title="There’s nothing here yet" text="Check back after the list owner adds a wish." />}
     <DiscussionPanel token={token} shareToken={share.shareToken} viewerToken={viewerToken || undefined} accountShareID={share.accountShareID} mentionCandidates={mentionCandidates} defaultName={defaultNoteName} onError={onError} />
     {identity && <IdentityModal close={() => setIdentity(null)} continueWith={(displayName, shareName) => { void update(identity.itemId, { purchasedQuantity: identity.purchasedQuantity, note: identity.note, displayName, shareName }); setIdentity(null) }} />}
     {noteItem && <NoteModal initial={noteItem} candidates={mentionCandidates} defaultName={defaultNoteName} close={() => setNoteItem(null)} save={async (note, displayName, shareName) => { const itemId = noteItem.itemId; setNoteItem(null); await update(itemId, { note, displayName, shareName }); await load() }} />}
