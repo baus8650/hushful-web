@@ -264,6 +264,7 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
   const [formError, setFormError] = useState('')
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState('')
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [adminFactorRequired, setAdminFactorRequired] = useState(false)
   const [adminFactor, setAdminFactor] = useState('')
   const [pendingGoogleCredential, setPendingGoogleCredential] = useState('')
@@ -272,6 +273,10 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
     e.preventDefault(); setFormError('')
     if (register && !termsAccepted) {
       setFormError('Please accept the Terms of Use and Privacy Policy to create an account.')
+      return
+    }
+    if (register && !ageConfirmed) {
+      setFormError('Please confirm that you are at least 13 years old to create an account.')
       return
     }
     if (register && password !== confirmPassword) {
@@ -286,7 +291,7 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
         return
       }
       if (register) {
-        const response = await api.register(email, password, name.trim(), CURRENT_TERMS_VERSION)
+        const response = await api.register(email, password, name.trim(), CURRENT_TERMS_VERSION, ageConfirmed)
         setPendingVerificationEmail(response.email)
         setMessage('We sent a verification link to your email. Open it to finish creating your account.')
       } else {
@@ -326,16 +331,17 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
         {register && confirmPassword && password !== confirmPassword && <p className="auth-error" role="alert">The passwords do not match.</p>}
         {formError && <p className="auth-error" role="alert">{formError}</p>}
         {message && <p className="auth-message" role="status">{message}</p>}
+        {register && <label className="checkbox"><input type="checkbox" checked={ageConfirmed} onChange={(event) => setAgeConfirmed(event.target.checked)} /><span>I confirm that I am at least 13 years old.</span></label>}
         {register && <label className="checkbox"><input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} /><span>I agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms of Use</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.</span></label>}
-        <button className="primary wide" disabled={busy || (register && (password !== confirmPassword || !termsAccepted))}>{busy && <LoaderCircle className="spin" />} {mode === 'forgot' ? 'Send reset link' : register ? 'Create account' : 'Sign in'} <ChevronRight /></button>
+        <button className="primary wide" disabled={busy || (register && (password !== confirmPassword || !termsAccepted || !ageConfirmed))}>{busy && <LoaderCircle className="spin" />} {mode === 'forgot' ? 'Send reset link' : register ? 'Create account' : 'Sign in'} <ChevronRight /></button>
       </form>
       {mode !== 'forgot' && <>
         <div className="auth-divider"><span>or</span></div>
-        <GoogleSignInButton onAuthenticated={onAuthenticated} onError={onError} onAdminFactorRequired={(credential) => { setPendingGoogleCredential(credential); setAdminFactorRequired(true); setFormError('Enter the 6-digit code from your authenticator app. A recovery code also works.') }} register={register} termsAccepted={termsAccepted} />
+        <GoogleSignInButton onAuthenticated={onAuthenticated} onError={onError} onAdminFactorRequired={(credential) => { setPendingGoogleCredential(credential); setAdminFactorRequired(true); setFormError('Enter the 6-digit code from your authenticator app. A recovery code also works.') }} register={register} termsAccepted={termsAccepted} ageConfirmed={ageConfirmed} />
       </>}
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setFormError(''); setMode('forgot') }}>Forgot password?</button>}
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => void resendVerification()} disabled={busy || !email}>Need a verification link?</button>}
-      <button className="text-button auth-switch" onClick={() => { setMessage(''); setFormError(''); setConfirmPassword(''); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
+      <button className="text-button auth-switch" onClick={() => { setMessage(''); setFormError(''); setConfirmPassword(''); setAgeConfirmed(false); setTermsAccepted(false); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
       </>}
     <p className="hint">The iOS app is awaiting App Store approval. Web payments and Android are coming soon.</p>
     </section>
@@ -343,7 +349,7 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
   </main>
 }
 
-function GoogleSignInButton({ onAuthenticated, onError, onAdminFactorRequired, register, termsAccepted }: { onAuthenticated: (token: string) => void; onError: (e: unknown) => void; onAdminFactorRequired: (credential: string) => void; register: boolean; termsAccepted: boolean }) {
+function GoogleSignInButton({ onAuthenticated, onError, onAdminFactorRequired, register, termsAccepted, ageConfirmed }: { onAuthenticated: (token: string) => void; onError: (e: unknown) => void; onAdminFactorRequired: (credential: string) => void; register: boolean; termsAccepted: boolean; ageConfirmed: boolean }) {
   const container = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
@@ -361,7 +367,8 @@ function GoogleSignInButton({ onAuthenticated, onError, onAdminFactorRequired, r
         callback: async ({ credential }) => {
           try {
             if (register && !termsAccepted) { onError(new Error('Please accept the Terms of Use and Privacy Policy first.')); return }
-            onAuthenticated((await api.googleLogin(credential, register ? CURRENT_TERMS_VERSION : undefined)).accessToken)
+            if (register && !ageConfirmed) { onError(new Error('Please confirm that you are at least 13 years old first.')); return }
+            onAuthenticated((await api.googleLogin(credential, register ? CURRENT_TERMS_VERSION : undefined, undefined, ageConfirmed)).accessToken)
           }
           catch (error) { if (error instanceof ApiError && error.status === 401 && error.message.includes('Admin verification required')) onAdminFactorRequired(credential); else onError(error) }
         },
@@ -372,7 +379,7 @@ function GoogleSignInButton({ onAuthenticated, onError, onAdminFactorRequired, r
       })
     }, 50)
     return () => window.clearInterval(timer)
-  }, [onAuthenticated, onError, onAdminFactorRequired, register, termsAccepted])
+  }, [onAuthenticated, onError, onAdminFactorRequired, register, termsAccepted, ageConfirmed])
   return <div className="google-sign-in" ref={container} />
 }
 

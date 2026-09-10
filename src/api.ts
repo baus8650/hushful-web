@@ -57,9 +57,9 @@ async function protectedImage(path: string, accessToken?: string, viewerToken?: 
 }
 
 export const api = {
-  register: (email: string, password: string, displayName: string, acceptedTermsVersion = CURRENT_TERMS_VERSION) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName, website: '', acceptedTermsVersion }) }),
+  register: (email: string, password: string, displayName: string, acceptedTermsVersion = CURRENT_TERMS_VERSION, ageConfirmed = false) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName, website: '', acceptedTermsVersion, ageConfirmed }) }),
   login: (email: string, password: string, totpCode?: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password, ...(totpCode ? { totpCode } : {}) }) }),
-  googleLogin: (idToken: string, acceptedTermsVersion?: string, totpCode?: string) => request<TokenResponse>('/v1/auth/google', { method: 'POST', body: JSON.stringify({ idToken, ...(acceptedTermsVersion ? { acceptedTermsVersion } : {}), ...(totpCode ? { totpCode } : {}) }) }),
+  googleLogin: (idToken: string, acceptedTermsVersion?: string, totpCode?: string, ageConfirmed = false) => request<TokenResponse>('/v1/auth/google', { method: 'POST', body: JSON.stringify({ idToken, ...(acceptedTermsVersion ? { acceptedTermsVersion, ageConfirmed } : {}), ...(totpCode ? { totpCode } : {}) }) }),
   verifyEmail: (token: string) => request<TokenResponse>('/v1/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
   resendEmailVerification: (email: string) => request<{ message: string }>('/v1/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
   forgotPassword: (email: string) => request<{ message: string }>('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
