@@ -35,6 +35,7 @@ export interface WishlistItem {
   createdAt: string; updatedAt: string; wishlist: { id: string }
 }
 export interface SharedWishlist { shareToken: string; title: string; sharedByName?: string; accountShareID?: string; wishlistID?: string; matureContentEnabled?: boolean }
+export interface GuestShareLink { id: string; createdAt?: string; expiresAt?: string }
 export interface AccountSharedWishlist { id: string; wishlistID: string; title: string; sharedByName: string; matureContentEnabled?: boolean }
 export interface SharedNote { stateID?: string; authorDisplayName?: string; updatedAt?: string; note: string; isMine?: boolean }
 export interface WishlistDiscussionComment { id: string; message: string; authorDisplayName?: string; createdAt?: string; isMine: boolean }

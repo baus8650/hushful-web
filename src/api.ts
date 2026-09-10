@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 export const CURRENT_TERMS_VERSION = '2026-09-09'
@@ -124,6 +124,9 @@ export const api = {
   reportDiscussionComment: (token: string, commentID: string, reason = 'other', details = '') => request<void>(`/v1/reports/discussion-comments/${commentID}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
   reportItemNote: (token: string, stateID: string, reason = 'other', details = '') => request<void>(`/v1/reports/item-notes/${stateID}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
   reportGuestShareLink: (shareToken: string, viewerToken: string, reason = 'other', details = '') => request<void>(`/v1/public-reports/share-links/${encodeURIComponent(shareToken)}`, { method: 'POST', headers: viewer(viewerToken), body: JSON.stringify({ reason, details }) }),
+  guestShareLinks: (token: string, wishlistId: string) => request<GuestShareLink[]>(`/v1/wishlists/${wishlistId}/shares`, { headers: auth(token) }),
+  revokeGuestShareLink: (token: string, wishlistId: string, shareId: string) => request<void>(`/v1/wishlists/${wishlistId}/shares/${shareId}`, { method: 'DELETE', headers: auth(token) }),
+  rotateGuestShareLink: (token: string, wishlistId: string, shareId: string) => request<{ shareToken: string }>(`/v1/wishlists/${wishlistId}/shares/${shareId}/rotate`, { method: 'POST', headers: auth(token) }),
   friendGroups: (token: string) => request<FriendGroup[]>('/v1/friend-groups', { headers: auth(token) }),
   createFriendGroup: (token: string, name: string) => request<FriendGroup>('/v1/friend-groups', { method: 'POST', headers: auth(token), body: JSON.stringify({ name }) }),
   addGroupMember: (token: string, groupId: string, userId: string) => request<FriendGroup>(`/v1/friend-groups/${groupId}/members/${userId}`, { method: 'PUT', headers: auth(token) }),
