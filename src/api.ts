@@ -1,6 +1,7 @@
 import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
+export const CURRENT_TERMS_VERSION = '2026-09-09'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message) }
@@ -56,9 +57,9 @@ async function protectedImage(path: string, accessToken?: string, viewerToken?: 
 }
 
 export const api = {
-  register: (email: string, password: string, displayName: string) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName, website: '' }) }),
-  login: (email: string, password: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  googleLogin: (idToken: string) => request<TokenResponse>('/v1/auth/google', { method: 'POST', body: JSON.stringify({ idToken }) }),
+  register: (email: string, password: string, displayName: string, acceptedTermsVersion = CURRENT_TERMS_VERSION) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName, website: '', acceptedTermsVersion }) }),
+  login: (email: string, password: string, totpCode?: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password, ...(totpCode ? { totpCode } : {}) }) }),
+  googleLogin: (idToken: string, acceptedTermsVersion?: string, totpCode?: string) => request<TokenResponse>('/v1/auth/google', { method: 'POST', body: JSON.stringify({ idToken, ...(acceptedTermsVersion ? { acceptedTermsVersion } : {}), ...(totpCode ? { totpCode } : {}) }) }),
   verifyEmail: (token: string) => request<TokenResponse>('/v1/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
   resendEmailVerification: (email: string) => request<{ message: string }>('/v1/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
   forgotPassword: (email: string) => request<{ message: string }>('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
@@ -84,6 +85,14 @@ export const api = {
   adminFeedback: (token: string) => request<UserFeedback[]>('/v1/admin/feedback', { headers: auth(token) }),
   adminAccounts: (token: string, query = '') => request<AdminAccount[]>('/v1/metrics/accounts?limit=1000' + (query ? '&q=' + encodeURIComponent(query) : ''), { headers: auth(token) }),
   adminReports: (token: string) => request<UserReport[]>('/v1/admin/reports', { headers: auth(token) }),
+  adminAudit: (token: string) => request<Array<{ id: string; adminEmail?: string; action: string; targetType?: string; targetID?: string; metadata?: string; createdAt?: string }>>('/v1/admin/audit', { headers: auth(token) }),
+  adminTOTPStatus: (token: string) => request<{ enabled: boolean; recoveryCodesRemaining: number }>('/v1/admin/security/totp/status', { headers: auth(token) }),
+  enrollAdminTOTP: (token: string) => request<{ secret: string; provisioningURI: string; recoveryCodes: string[] }>('/v1/admin/security/totp/enroll', { method: 'POST', headers: auth(token) }),
+  confirmAdminTOTP: (token: string, code: string) => request<{ enabled: boolean; recoveryCodesRemaining: number }>('/v1/admin/security/totp/confirm', { method: 'POST', headers: auth(token), body: JSON.stringify({ code }) }),
+  disableAdminTOTP: (token: string) => request<{ enabled: boolean; recoveryCodesRemaining: number }>('/v1/admin/security/totp/disable', { method: 'POST', headers: auth(token) }),
+  removeReportedContent: (token: string, reportID: string) => request<void>(`/v1/admin/reports/${reportID}/remove-content`, { method: 'POST', headers: auth(token) }),
+  dismissReport: (token: string, reportID: string) => request<void>(`/v1/admin/reports/${reportID}/dismiss`, { method: 'POST', headers: auth(token) }),
+  suspendReportedUser: (token: string, reportID: string) => request<void>(`/v1/admin/reports/${reportID}/suspend-reported-user`, { method: 'POST', headers: auth(token) }),
   activity: (token: string) => request<ActivityItem[]>('/v1/activity', { headers: auth(token) }),
   unreadActivityCount: (token: string) => request<ActivityUnreadCount>('/v1/activity/unread-count', { headers: auth(token) }),
   readActivity: (token: string, id: string) => request<ActivityItem>(`/v1/activity/${id}/read`, { method: 'POST', headers: auth(token) }),
@@ -112,6 +121,9 @@ export const api = {
   blockUser: (token: string, userId: string) => request<void>(`/v1/blocks/${userId}`, { method: 'PUT', headers: auth(token) }),
   reportUser: (token: string, userId: string, reason: string, details: string) => request<void>(`/v1/reports/users/${userId}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
   reportSharedWishlist: (token: string, accountShareID: string | undefined, shareToken: string, reason: string, details: string) => request<void>(accountShareID ? `/v1/reports/shared-wishlists/${accountShareID}` : `/v1/reports/share-links/${shareToken}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
+  reportDiscussionComment: (token: string, commentID: string, reason = 'other', details = '') => request<void>(`/v1/reports/discussion-comments/${commentID}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
+  reportItemNote: (token: string, stateID: string, reason = 'other', details = '') => request<void>(`/v1/reports/item-notes/${stateID}`, { method: 'POST', headers: auth(token), body: JSON.stringify({ reason, details }) }),
+  reportGuestShareLink: (shareToken: string, viewerToken: string, reason = 'other', details = '') => request<void>(`/v1/public-reports/share-links/${encodeURIComponent(shareToken)}`, { method: 'POST', headers: viewer(viewerToken), body: JSON.stringify({ reason, details }) }),
   friendGroups: (token: string) => request<FriendGroup[]>('/v1/friend-groups', { headers: auth(token) }),
   createFriendGroup: (token: string, name: string) => request<FriendGroup>('/v1/friend-groups', { method: 'POST', headers: auth(token), body: JSON.stringify({ name }) }),
   addGroupMember: (token: string, groupId: string, userId: string) => request<FriendGroup>(`/v1/friend-groups/${groupId}/members/${userId}`, { method: 'PUT', headers: auth(token) }),
@@ -147,7 +159,7 @@ export const api = {
     }
   },
   deleteItem: (token: string, wishlistId: string, itemId: string) => request<void>(`/v1/wishlists/${wishlistId}/items/${itemId}`, { method: 'DELETE', headers: auth(token) }),
-  createShare: (token: string, id: string) => request<{ shareToken: string }>(`/v1/wishlists/${id}/shares`, { method: 'POST', headers: auth(token) }),
+  createShare: (token: string, id: string) => request<{ shareToken: string; expiresAt?: string }>(`/v1/wishlists/${id}/shares`, { method: 'POST', headers: auth(token) }),
   openShare: (shareToken: string, viewerToken?: string, accessToken?: string) => request<ShareViewResponse>(`/v1/shares/${shareToken}`, { headers: { ...(viewerToken ? viewer(viewerToken) : {}), ...(accessToken ? auth(accessToken) : {}) } }),
   accountShares: (token: string) => request<AccountSharedWishlist[]>('/v1/shared-wishlists', { headers: auth(token) }),
   saveAccountShare: (token: string, shareToken: string, viewerToken?: string) => request<AccountSharedWishlist>(`/v1/shared-wishlists/open/${shareToken}`, { method: 'POST', headers: { ...auth(token), ...(viewerToken ? viewer(viewerToken) : {}) } }),
