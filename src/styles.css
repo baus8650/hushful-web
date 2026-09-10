@@ -36,6 +36,8 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .logo strong { font-family:'Newsreader',serif; font-size:2rem; letter-spacing:-.04em; }
 .logo.compact span { width:34px; height:34px; border-radius:11px; }
 .logo.compact strong { font-size:1.65rem; }
+.logo-button { border:0; padding:0; background:none; color:inherit; cursor:pointer; text-align:left; }
+.logo-button:hover strong { color:var(--sage-dark); }
 
 .auth-page { min-height:100vh; display:grid; grid-template-columns:minmax(260px,1fr) minmax(360px,480px) minmax(260px,1fr); align-items:center; gap:5vw; padding:48px; background:radial-gradient(circle at 12% 22%,#e7ded1 0,transparent 28%),radial-gradient(circle at 88% 80%,#e4dfe7 0,transparent 30%),var(--cream); }
 .auth-brand { justify-self:end; max-width:380px; }
