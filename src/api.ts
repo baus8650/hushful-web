@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, AdminProGrant, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 export const CURRENT_TERMS_VERSION = '2026-09-09'
@@ -84,6 +84,9 @@ export const api = {
   submitFeedback: (token: string, category: string, message: string) => request<UserFeedback>('/v1/feedback', { method: 'POST', headers: auth(token), body: JSON.stringify({ category, message, platform: 'web', shareName: false }) }),
   adminFeedback: (token: string) => request<UserFeedback[]>('/v1/admin/feedback', { headers: auth(token) }),
   adminAccounts: (token: string, query = '') => request<AdminAccount[]>('/v1/metrics/accounts?limit=1000' + (query ? '&q=' + encodeURIComponent(query) : ''), { headers: auth(token) }),
+  adminProGrants: (token: string) => request<AdminProGrant[]>('/v1/admin/pro/grants', { headers: auth(token) }),
+  grantProAccess: (token: string, userID: string, reason: string) => request<AdminProGrant>('/v1/admin/pro/grants', { method: 'POST', headers: auth(token), body: JSON.stringify({ userID, reason }) }),
+  revokeProAccess: (token: string, grantID: string) => request<AdminProGrant>(`/v1/admin/pro/grants/${grantID}/revoke`, { method: 'POST', headers: auth(token) }),
   adminReports: (token: string) => request<UserReport[]>('/v1/admin/reports', { headers: auth(token) }),
   adminAudit: (token: string) => request<Array<{ id: string; adminEmail?: string; action: string; targetType?: string; targetID?: string; metadata?: string; createdAt?: string }>>('/v1/admin/audit', { headers: auth(token) }),
   adminTOTPStatus: (token: string) => request<{ enabled: boolean; recoveryCodesRemaining: number }>('/v1/admin/security/totp/status', { headers: auth(token) }),
