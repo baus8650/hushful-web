@@ -207,6 +207,8 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .purchase-review strong { color:var(--ink); }
 .purchase-review.verified { border-color:var(--sage); }
 .purchase-review.unverified { border-color:var(--line); }
+.purchase-review .secondary { justify-self:start; margin-top:5px; }
+.purchase-grant-status { color:var(--sage-dark) !important; font-weight:600; }
 .planning-purchase-status { display:flex; align-items:center; gap:5px; margin-top:5px; color:var(--sage-dark); font-weight:700; }.planning-purchase-status svg { width:14px; height:14px; }
 .metric-paths { display:grid; gap:5px; }.metric-paths span{display:flex;justify-content:space-between;gap:12px}.metric-paths small{color:var(--muted)}
 
