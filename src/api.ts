@@ -1,7 +1,7 @@
 import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, AdminProGrant, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
-export const CURRENT_TERMS_VERSION = '2026-09-09'
+export const CURRENT_TERMS_VERSION = '2026-09-10'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message) }

@@ -3,7 +3,8 @@ import { Banknote, Bell, CalendarDays, Check, ChevronRight, CircleAlert, CircleH
 import { api, ApiError, CURRENT_TERMS_VERSION } from './api'
 import { authStorage, shareStorage } from './storage'
 import type { AccountSharedWishlist, ActivityItem, CurrentUser, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileWishlist, RecurringOccasion, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistDiscussionComment, WishlistItem } from './types'
-import { LegalPage, PublicFooter, legalRoute } from './LegalPages'
+import { LegalPage, PublicFooter } from './LegalPages'
+import { legalRoute } from './legalRouting'
 
 import { FREE_LIST_LIMIT, activeOwnedListCount, canCreateWishlist } from './proAccess'
 
@@ -73,7 +74,7 @@ function ProPlan({ isPro, activeLists }: { isPro: boolean; activeLists?: number 
     {!isPro && activeLists !== undefined && <p className="hint">{activeLists} of {FREE_LIST_LIMIT} active lists used. Lists owned by someone else don’t count toward your limit.</p>}
     <p>Pro unlocks unlimited active lists, recurring occasions, and cash funds on the web. The iOS app also includes templates, styling, insights, export, and duplication.</p>
     {!isPro && <p>To unlock additional functionality, download the Hushful iOS app and upgrade to Pro once it launches. Use the same Hushful account on both devices.</p>}
-    <p className="hint">The iOS app is awaiting App Store approval. Web payments and Android are coming soon.</p>
+    <p className="hint">Hushful Pro is available through supported mobile builds; web payments are not available.</p>
   </section>
 }
 
@@ -175,6 +176,7 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   const storageKey = `hushful.guest.viewer.${shareToken}`
   const [share, setShare] = useState<ShareViewResponse['wishlist'] | null>(null)
   const [viewerToken, setViewerToken] = useState(() => sessionStorage.getItem(storageKey) || '')
+  const viewerTokenRef = useRef(viewerToken)
   const [requiresAdultConfirmation, setRequiresAdultConfirmation] = useState(false)
   const [adultConfirmationDeclined, setAdultConfirmationDeclined] = useState(false)
   const [rows, setRows] = useState<SharedItemRow[]>([])
@@ -197,8 +199,9 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   const load = useCallback(async () => {
     setLoading(true); setError('')
     try {
-      const opened = await api.openShare(shareToken, viewerToken || undefined, authStorage.get() || undefined)
+      const opened = await api.openShare(shareToken, viewerTokenRef.current || undefined, authStorage.get() || undefined)
       sessionStorage.setItem(storageKey, opened.viewerToken)
+      viewerTokenRef.current = opened.viewerToken
       setViewerToken(opened.viewerToken)
       setShare(opened.wishlist)
       setAdultConfirmationDeclined(false)
@@ -211,8 +214,8 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'This share link is unavailable.') }
     finally { setLoading(false) }
-  }, [shareToken, storageKey, viewerToken, loadContent])
-  useEffect(() => { void load() }, [])
+  }, [shareToken, storageKey, loadContent])
+  useEffect(() => { void load() }, [load])
 
   async function confirmAdult() {
     if (!viewerToken) return
@@ -347,7 +350,7 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => void resendVerification()} disabled={busy || !email}>Need a verification link?</button>}
       <button className="text-button auth-switch" onClick={() => { setMessage(''); setFormError(''); setConfirmPassword(''); setAgeConfirmed(false); setTermsAccepted(false); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
       </>}
-    <p className="hint">The iOS app is awaiting App Store approval. Web payments and Android are coming soon.</p>
+    <p className="hint">Hushful Pro is available through supported mobile builds; web payments are not available.</p>
     </section>
     <PublicFooter />
   </main>
@@ -490,6 +493,10 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   const [occasionsOpen, setOccasionsOpen] = useState(false)
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [unreadActivityCount, setUnreadActivityCount] = useState(0)
+  const updateActivity = useCallback((next: ActivityItem[]) => {
+    setActivity(next)
+    setUnreadActivityCount(next.filter((item) => !item.readAt).length)
+  }, [])
   const [pins, setPins] = useState<Pins>({ wishlistIDs: [], userIDs: [], groupIDs: [] })
   const [socialFriends, setSocialFriends] = useState<Friendship[]>([])
   const [socialGroups, setSocialGroups] = useState<FriendGroup[]>([])
@@ -597,7 +604,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
     {sharedLibraryOpen && <Modal close={() => setSharedLibraryOpen(false)} size="modal-wide"><ModalHeader eyebrow="Your complete library" title="All shared lists" close={() => setSharedLibraryOpen(false)} /><div className="social-stack">{sharedForDisplay.length ? [...sharedForDisplay].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })).map((share) => <button className="profile-list-row" key={share.accountShareID || share.shareToken} onClick={() => { setSharedLibraryOpen(false); select({ kind: 'shared', share }) }}><Gift /><span><strong>{share.title}</strong><small>Shared by {share.sharedByName || 'Someone'}</small></span><ChevronRight /></button>) : <p className="hint">No lists have been shared with you yet.</p>}<div className="modal-actions"><button className="secondary" onClick={() => { setSharedLibraryOpen(false); setShareOpen(true) }}><Link2 /> Open a link</button></div></div></Modal>}
     {friendsOpen && <FriendsModal token={token} close={() => setFriendsOpen(false)} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setFriendsOpen(false); select({ kind: 'shared', share }) }} />}
     {peopleSearchOpen && <UserSearchModal token={token} initialPerson={personToOpen} close={() => { setPeopleSearchOpen(false); setPersonToOpen(undefined) }} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setPeopleSearchOpen(false); setPersonToOpen(undefined); select({ kind: 'shared', share }) }} />}
-    {activityOpen && <ActivityModal token={token} items={activity} changed={(next) => { setActivity(next); setUnreadActivityCount(next.filter((item) => !item.readAt).length) }} close={() => setActivityOpen(false)} onError={onError} />}
+    {activityOpen && <ActivityModal token={token} items={activity} changed={updateActivity} close={() => setActivityOpen(false)} onError={onError} />}
     {user.isPro === true && occasionsOpen && <OccasionsModal token={token} close={() => setOccasionsOpen(false)} onError={onError} notify={notify} createWishlist={createWishlist} />}
     {accountOpen && <AccountModal token={token} user={user} userChanged={setUser} onSharedListsPreferenceChanged={() => void loadAccountShares()} focusFeedback={feedbackFocus} close={() => { setAccountOpen(false); setFeedbackFocus(false) }} onError={onError} notify={notify} logout={logout} />}
     {tutorialOpen && <TutorialModal close={() => { localStorage.setItem(tutorialKey, '1'); setTutorialOpen(false) }} />}
@@ -852,7 +859,7 @@ function ProtectedImage({ path, accessToken, viewerToken, onError }: { path: str
       setSource(objectURL)
     }).catch(() => { if (active) onError?.() })
     return () => { active = false; if (objectURL) URL.revokeObjectURL(objectURL) }
-  }, [path, accessToken, viewerToken])
+  }, [path, accessToken, viewerToken, onError])
   return source ? <img src={source} alt="" /> : null
 }
 
@@ -929,7 +936,7 @@ function AddItemModal({ token, wishlist, allWishlists, candidates, initial, clos
     catch (problem) { setError(problem instanceof Error ? problem.message : 'The wish could not be saved.'); setSaving(false) }
   }
   return <Modal close={close} size="modal-wide"><ModalHeader eyebrow={editing ? 'A thoughtful adjustment' : 'One more lovely thing'} title={editing ? 'Edit this wish' : 'Add a wish'} close={close} /><form className="stack-form" onSubmit={submit}>
-    {!editing && !wishlist.proAccess && <p className="hint">Cash funds require Hushful Pro. Upgrade in the Hushful iOS app once it launches. The iOS app, web payments, and Android are coming soon.</p>}
+    {!editing && !wishlist.proAccess && <p className="hint">Cash funds require Hushful Pro. Upgrade in a supported Hushful mobile app. Web payments are not available.</p>}
     {!editing && wishlist.proAccess && <fieldset className="public-choice"><legend>What would you like to add?</legend><label className="checkbox"><input type="radio" checked={!cashFund} onChange={() => setCashFund(false)} /><span><strong>Wish</strong><small>A product or gift idea</small></span></label><label className="checkbox"><input type="radio" checked={cashFund} onChange={() => setCashFund(true)} /><span><strong>Cash Fund</strong><small>An external contribution link</small></span></label></fieldset>}
     <Field label="Image (optional)"><div className="item-image-editor"><div className="item-image-preview">{imagePreview && !removeImage ? <img src={imagePreview} alt="Item preview" onError={() => setImagePreview('')} /> : <Gift />}</div><div><label className="secondary image-upload">{imagePreview && !removeImage ? 'Change image' : 'Choose image'}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = '' }} /></label>{imagePreview && !removeImage && <button type="button" className="text-button danger-text" onClick={() => { setImageFile(undefined); setImagePreview(''); setRemoveImage(Boolean(initial)) }}>Remove image</button>}<small>JPEG, PNG, or WebP · 5 MB maximum</small></div></div></Field>
     <Field label="Item title"><input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="What are you wishing for?" /></Field>
@@ -997,7 +1004,7 @@ function FriendProfileModal({ token, friendship, person, close, removed, added, 
 }
 
 function ActivityModal({ token, items, changed, close, onError }: { token: string; items: ActivityItem[]; changed: (items: ActivityItem[]) => void; close: () => void; onError: (e: unknown) => void }) {
-  useEffect(() => { if (!items.some((item) => !item.readAt)) return; api.readAllActivity(token).then(() => changed(items.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })))).catch(onError) }, [])
+  useEffect(() => { if (!items.some((item) => !item.readAt)) return; api.readAllActivity(token).then(() => changed(items.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })))).catch(onError) }, [items, changed, onError, token])
   async function remove(id: string, confirmed = false) { if (!confirmed && !window.confirm('Clear this activity entry? This cannot be undone.')) return; try { await api.deleteActivity(token, id); changed(items.filter((item) => item.id !== id)) } catch (e) { onError(e) } }
   async function resolve(item: ActivityItem, accept: boolean) { if (!item.actorID) return; if (!accept && !window.confirm('Decline this friend request? The request will be removed from your activity.')) return; try { if (accept) await api.acceptFriendFrom(token, item.actorID); else await api.declineFriendFrom(token, item.actorID); await remove(item.id, true) } catch (e) { onError(e) } }
   async function clearAll() { if (!window.confirm('Clear all activity? This cannot be undone.')) return; try { await api.clearActivity(token); changed([]) } catch (e) { onError(e) } }

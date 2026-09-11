@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:release": "npm run generate:assetlinks && npm run build",
+    "generate:assetlinks": "node scripts/generate-assetlinks.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node --experimental-strip-types --test tests/*.test.mjs"

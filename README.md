@@ -24,10 +24,18 @@ npm run build
 
 The production host should serve `dist/` and rewrite unknown routes (including `/share/:token`) to `index.html`.
 
+For an Android release deployment, generate the App Links file from the certificate shown under Google Play Console → App integrity → App signing:
+
+```bash
+ANDROID_APP_SIGNING_SHA256='AA:BB:…:FF' npm run build:release
+```
+
+This writes `/.well-known/assetlinks.json` into the production bundle. Do not substitute the local upload-key fingerprint.
+
 Viewer tokens and saved shared lists are scoped to the signed-in account and stored in browser local storage. Authentication uses the same bearer-token API as iOS.
 
 ## Free and Pro
 
-Free accounts have three active primary-owned lists. Archived lists and lists owned by other people do not count. Pro access comes from the server's `isPro` account field and refreshes when the browser regains focus or the user selects Refresh Pro status. The upgrade panel explains the plans and the pending iOS, web payments, and Android launches.
+Free accounts have three active primary-owned lists. Archived lists and lists owned by other people do not count. Pro access comes from the server's `isPro` account field and refreshes when the browser regains focus or the user selects Refresh Pro status. Mobile builds provide the store purchase flow; web payments are not available.
 
 Run the Free/Pro policy tests with `npm test` using Node 22.6 or newer. See `../WishlistAPI/PRO_ROLLOUT.md` before deploying the coordinated API and iOS changes; purchases made by the old iOS build are only stored locally until synced by an updated build.
