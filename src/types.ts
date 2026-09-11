@@ -39,7 +39,9 @@ export interface GuestShareLink { id: string; createdAt?: string; expiresAt?: st
 export interface AccountSharedWishlist { id: string; wishlistID: string; title: string; sharedByName: string; matureContentEnabled?: boolean }
 export interface SharedNote { stateID?: string; authorDisplayName?: string; updatedAt?: string; note: string; isMine?: boolean }
 export interface WishlistDiscussionComment { id: string; message: string; authorDisplayName?: string; createdAt?: string; isMine: boolean }
-export interface UserFeedback { id: string; category: string; message: string; platform: string; userID: string; userEmail?: string; userDisplayName?: string; shareName?: boolean; purchaseEvidence?: string; purchaseEvidenceDetails?: string; purchaseProvider?: string; purchaseOrderID?: string; purchaseAt?: string; createdAt?: string }
+export interface UserFeedback { id: string; category: string; message: string; platform: string; userID: string; userEmail?: string; userDisplayName?: string; shareName?: boolean; purchaseEvidence?: string; purchaseEvidenceDetails?: string; purchaseProvider?: string; purchaseOrderID?: string; purchaseAt?: string; status?: 'open' | 'closed'; archived?: boolean; createdAt?: string }
+export interface FeedbackReply { id: string; feedbackID: string; authorRole: 'admin' | 'user'; authorDisplayName?: string; message: string; createdAt?: string }
+export interface FeedbackThread { feedback: UserFeedback; replies: FeedbackReply[] }
 export interface AdminAccount { id: string; displayName?: string; email: string; username?: string; emailVerified?: boolean; onboardingVersion?: number; isPro?: boolean; suspicious?: boolean; createdAt?: string }
 export interface AdminProGrant { id: string; userID: string; userEmail: string; userDisplayName?: string; reason: string; active: boolean; grantedAt?: string; revokedAt?: string; grantedByEmail?: string }
 export interface UserReport { id: string; reporterID?: string; reporterEmail?: string; reportedID: string; reportedEmail: string; reason: string; details: string; targetType?: string; targetID?: string; status: string; resolvedAt?: string; createdAt?: string }

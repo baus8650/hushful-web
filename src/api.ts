@@ -1,4 +1,4 @@
-import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, AdminProGrant, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
+import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, AdminProGrant, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FeedbackThread, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
 export const CURRENT_TERMS_VERSION = '2026-09-10'
@@ -82,7 +82,16 @@ export const api = {
   trackPageView: (visitorID: string, path: string, signedIn: boolean) => request<void>('/v1/metrics/events', { method: 'POST', body: JSON.stringify({ visitorID, path, signedIn }) }),
   metricsSummary: (token: string, days = 30) => request<{ days: number; views: number; visitors: number; signedInViews: number; totalAccounts: number; newAccounts: number; daily: Array<{ date: string; views: number; visitors: number; signups: number }>; topPaths: Array<{ path: string; views: number }> }>(`/v1/metrics/summary?days=${days}`, { headers: auth(token) }),
   submitFeedback: (token: string, category: string, message: string) => request<UserFeedback>('/v1/feedback', { method: 'POST', headers: auth(token), body: JSON.stringify({ category, message, platform: 'web', shareName: category === 'purchase' }) }),
-  adminFeedback: (token: string) => request<UserFeedback[]>('/v1/admin/feedback', { headers: auth(token) }),
+  feedback: (token: string) => request<UserFeedback[]>('/v1/feedback', { headers: auth(token) }),
+  feedbackThread: (token: string, id: string) => request<FeedbackThread>(`/v1/feedback/${id}`, { headers: auth(token) }),
+  replyToFeedback: (token: string, id: string, message: string) => request<FeedbackThread>(`/v1/feedback/${id}/replies`, { method: 'POST', headers: auth(token), body: JSON.stringify({ message }) }),
+  adminFeedback: (token: string, includeArchived = false) => request<UserFeedback[]>(`/v1/admin/feedback${includeArchived ? '?includeArchived=true' : ''}`, { headers: auth(token) }),
+  adminFeedbackThread: (token: string, id: string) => request<FeedbackThread>(`/v1/admin/feedback/${id}`, { headers: auth(token) }),
+  adminReplyToFeedback: (token: string, id: string, message: string) => request<FeedbackThread>(`/v1/admin/feedback/${id}/replies`, { method: 'POST', headers: auth(token), body: JSON.stringify({ message }) }),
+  closeFeedback: (token: string, id: string) => request<UserFeedback>(`/v1/admin/feedback/${id}/close`, { method: 'POST', headers: auth(token) }),
+  reopenFeedback: (token: string, id: string) => request<UserFeedback>(`/v1/admin/feedback/${id}/reopen`, { method: 'POST', headers: auth(token) }),
+  archiveFeedback: (token: string, id: string) => request<UserFeedback>(`/v1/admin/feedback/${id}/archive`, { method: 'POST', headers: auth(token) }),
+  unarchiveFeedback: (token: string, id: string) => request<UserFeedback>(`/v1/admin/feedback/${id}/unarchive`, { method: 'POST', headers: auth(token) }),
   adminAccounts: (token: string, query = '') => request<AdminAccount[]>('/v1/metrics/accounts?limit=1000' + (query ? '&q=' + encodeURIComponent(query) : ''), { headers: auth(token) }),
   adminProGrants: (token: string) => request<AdminProGrant[]>('/v1/admin/pro/grants', { headers: auth(token) }),
   grantProAccess: (token: string, userID: string, reason: string) => request<AdminProGrant>('/v1/admin/pro/grants', { method: 'POST', headers: auth(token), body: JSON.stringify({ userID, reason }) }),
