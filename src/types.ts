@@ -43,6 +43,9 @@ export interface UserFeedback { id: string; category: string; message: string; p
 export interface FeedbackReply { id: string; feedbackID: string; authorRole: 'admin' | 'user'; authorDisplayName?: string; message: string; createdAt?: string }
 export interface FeedbackThread { feedback: UserFeedback; replies: FeedbackReply[] }
 export interface AdminAccount { id: string; displayName?: string; email: string; username?: string; emailVerified?: boolean; onboardingVersion?: number; isPro?: boolean; suspicious?: boolean; createdAt?: string }
+export interface AdminAccountWishlist { id: string; title: string; archived: boolean; createdAt?: string }
+export interface AdminAccountFriendRequest { id: string; otherUserEmail: string; otherUserDisplayName?: string; otherUsername?: string; status: string; createdAt?: string; updatedAt?: string }
+export interface AdminAccountActivity { userID: string; email: string; emailVerified: boolean; createdWishlists: AdminAccountWishlist[]; sentFriendRequests: AdminAccountFriendRequest[]; receivedFriendRequests: AdminAccountFriendRequest[] }
 export interface AdminProGrant { id: string; userID: string; userEmail: string; userDisplayName?: string; reason: string; active: boolean; grantedAt?: string; revokedAt?: string; grantedByEmail?: string }
 export interface UserReport { id: string; reporterID?: string; reporterEmail?: string; reportedID: string; reportedEmail: string; reason: string; details: string; targetType?: string; targetID?: string; status: string; resolvedAt?: string; createdAt?: string }
 export interface SharedItemRow {
