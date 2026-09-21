@@ -562,6 +562,43 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
     notify('Added to Shared With Me')
   }
   async function removeShare(share: SharedWishlist) { if (!window.confirm(`Are you sure you want to remove “${share.title}” from your account? You may need the original link to add it again.`)) return; try { if (share.accountShareID) await api.removeAccountShare(token, share.accountShareID); if (share.shareToken) shareStorage.remove(user.id, share.shareToken); setShared((all) => all.filter((item) => item.accountShareID !== share.accountShareID || item.shareToken !== share.shareToken)); if (view.kind === 'shared' && (view.share.accountShareID === share.accountShareID || view.share.shareToken === share.shareToken)) select({ kind: 'home' }) } catch (error) { onError(error) } }
+  async function openActivityWishlist(wishlistID: string) {
+    const owned = wishlists.find((wishlist) => wishlist.id === wishlistID)
+    if (owned) {
+      setActivityOpen(false)
+      select({ kind: 'wishlist', wishlist: owned })
+      return
+    }
+    try {
+      // The Activity poll can finish before the initial list load. Refresh
+      // ownership before deciding this is a shared or unavailable list.
+      const refreshedWishlists = await api.wishlists(token)
+      const refreshedOwned = refreshedWishlists.find((wishlist) => wishlist.id === wishlistID)
+      if (refreshedOwned) {
+        const target = { ...refreshedOwned, proAccess: user.isPro === true }
+        setWishlists(refreshedWishlists.map((wishlist) => ({ ...wishlist, proAccess: user.isPro === true })))
+        setActivityOpen(false)
+        select({ kind: 'wishlist', wishlist: target })
+        return
+      }
+      // Activity payloads use the underlying wishlist ID, while shared-list
+      // screens route through the recipient's account-share ID.
+      const saved = (await api.accountShares(token)).find((share) => share.wishlistID === wishlistID)
+      if (!saved) throw new Error('This wishlist is no longer available.')
+      const existing = shared.find((share) => share.accountShareID === saved.id || share.wishlistID === saved.wishlistID)
+      const target: SharedWishlist = {
+        shareToken: existing?.shareToken || '',
+        title: saved.title,
+        sharedByName: saved.sharedByName,
+        accountShareID: saved.id,
+        wishlistID: saved.wishlistID,
+        matureContentEnabled: saved.matureContentEnabled === true,
+      }
+      setShared((all) => [...all.filter((share) => share.accountShareID !== saved.id && share.wishlistID !== saved.wishlistID), target])
+      setActivityOpen(false)
+      select({ kind: 'shared', share: target })
+    } catch (error) { onError(error) }
+  }
 
   return <div className="app-shell">
     <aside className={`sidebar ${mobileNav ? 'open' : ''}`}>
@@ -604,7 +641,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
     {sharedLibraryOpen && <Modal close={() => setSharedLibraryOpen(false)} size="modal-wide"><ModalHeader eyebrow="Your complete library" title="All shared lists" close={() => setSharedLibraryOpen(false)} /><div className="social-stack">{sharedForDisplay.length ? [...sharedForDisplay].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })).map((share) => <button className="profile-list-row" key={share.accountShareID || share.shareToken} onClick={() => { setSharedLibraryOpen(false); select({ kind: 'shared', share }) }}><Gift /><span><strong>{share.title}</strong><small>Shared by {share.sharedByName || 'Someone'}</small></span><ChevronRight /></button>) : <p className="hint">No lists have been shared with you yet.</p>}<div className="modal-actions"><button className="secondary" onClick={() => { setSharedLibraryOpen(false); setShareOpen(true) }}><Link2 /> Open a link</button></div></div></Modal>}
     {friendsOpen && <FriendsModal token={token} close={() => setFriendsOpen(false)} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setFriendsOpen(false); select({ kind: 'shared', share }) }} />}
     {peopleSearchOpen && <UserSearchModal token={token} initialPerson={personToOpen} close={() => { setPeopleSearchOpen(false); setPersonToOpen(undefined) }} onError={onError} notify={notify} openShare={(saved) => { const share = { shareToken: '', title: saved.title, sharedByName: saved.sharedByName, accountShareID: saved.id, wishlistID: saved.wishlistID }; setShared((all) => all.some((item) => item.accountShareID === saved.id) ? all : [...all, share]); setPeopleSearchOpen(false); setPersonToOpen(undefined); select({ kind: 'shared', share }) }} />}
-    {activityOpen && <ActivityModal token={token} items={activity} changed={updateActivity} close={() => setActivityOpen(false)} onError={onError} />}
+    {activityOpen && <ActivityModal token={token} items={activity} changed={updateActivity} close={() => setActivityOpen(false)} openWishlist={(wishlistID) => void openActivityWishlist(wishlistID)} onError={onError} />}
     {user.isPro === true && occasionsOpen && <OccasionsModal token={token} close={() => setOccasionsOpen(false)} onError={onError} notify={notify} createWishlist={createWishlist} />}
     {accountOpen && <AccountModal token={token} user={user} userChanged={setUser} onSharedListsPreferenceChanged={() => void loadAccountShares()} focusFeedback={feedbackFocus} close={() => { setAccountOpen(false); setFeedbackFocus(false) }} onError={onError} notify={notify} logout={logout} />}
     {tutorialOpen && <TutorialModal close={() => { localStorage.setItem(tutorialKey, '1'); setTutorialOpen(false) }} />}
@@ -823,13 +860,19 @@ function DiscussionPanel({ token, wishlistID, shareToken = '', viewerToken, acco
   </section>
 }
 
+function addedDate(createdAt?: string) {
+  const date = createdAt ? new Date(createdAt) : null
+  return date && !Number.isNaN(date.getTime()) ? date.toLocaleDateString(undefined, { dateStyle: 'medium' }) : null
+}
+
 function OwnerItemCard({ token, item, planningRow, edit, remove }: { token: string; item: WishlistItem; planningRow?: SharedItemRow; edit: () => void; remove: () => void }) {
   const cash = item.itemType === 'cash_fund'
   const claimed = planningRow?.purchasedQuantity ?? (planningRow?.purchased ? 1 : 0)
   const mine = planningRow?.purchasedQuantityByMe ?? (planningRow?.purchasedByMe ? 1 : 0)
   const boughtByAnotherPlanner = planningRow?.purchasedByOthers ?? claimed > mine
   const purchaserLabel = planningRow?.purchasedByNames?.length ? `Bought by ${planningRow.purchasedByNames.join(', ')}` : 'Bought by another planner'
-  return <article className={`item-card ${cash ? 'cash-fund-card' : ''}`}>{cash ? <div className="item-icon item-artwork"><Banknote /></div> : <ItemArtwork item={item} claimed={boughtByAnotherPlanner} accessToken={token} />}<div className="item-copy"><div className="item-title-row"><h3>{item.title}</h3>{cash ? item.contributionGoal != null && <strong>Goal: {currency(item.contributionGoal)}</strong> : item.price != null && <strong>{currency(item.price)}</strong>}</div>{!cash && <small>Quantity: {item.quantity || 1}</small>}{boughtByAnotherPlanner && <small className="planning-purchase-status"><PackageCheck /> {purchaserLabel}</small>}{item.ownerNote && <p>{item.ownerNote}</p>}{item.url && <a href={safeUrl(item.url)} target="_blank" rel="noreferrer">{cash ? 'Open contribution link' : 'View item'} <ExternalLink /></a>}{cash && <small>Hushful does not process or hold funds.</small>}</div><div className="item-card-actions"><button className="edit-button" aria-label={`Edit ${item.title}`} onClick={edit}><Pencil /></button><button className="delete-button" aria-label={`Delete ${item.title}`} onClick={remove}><Trash2 /></button></div></article>
+  const addedAt = addedDate(item.createdAt)
+  return <article className={`item-card ${cash ? 'cash-fund-card' : ''}`}>{cash ? <div className="item-icon item-artwork"><Banknote /></div> : <ItemArtwork item={item} claimed={boughtByAnotherPlanner} accessToken={token} />}<div className="item-copy"><div className="item-title-row"><h3>{item.title}</h3>{cash ? item.contributionGoal != null && <strong>Goal: {currency(item.contributionGoal)}</strong> : item.price != null && <strong>{currency(item.price)}</strong>}</div>{addedAt && <small className="item-added-date">Added {addedAt}</small>}{!cash && <small>Quantity: {item.quantity || 1}</small>}{boughtByAnotherPlanner && <small className="planning-purchase-status"><PackageCheck /> {purchaserLabel}</small>}{item.ownerNote && <p>{item.ownerNote}</p>}{item.url && <a href={safeUrl(item.url)} target="_blank" rel="noreferrer">{cash ? 'Open contribution link' : 'View item'} <ExternalLink /></a>}{cash && <small>Hushful does not process or hold funds.</small>}</div><div className="item-card-actions"><button className="edit-button" aria-label={`Edit ${item.title}`} onClick={edit}><Pencil /></button><button className="delete-button" aria-label={`Delete ${item.title}`} onClick={remove}><Trash2 /></button></div></article>
 }
 
 function SharedItemCard({ row, accessToken, viewerToken, chooseQuantity, editNote, removeNote, onError, notify }: { row: SharedItemRow; accessToken?: string; viewerToken?: string; chooseQuantity: (quantity: number) => void; editNote: (note?: SharedItemRow['notes'][number]) => void; removeNote: () => void; onError?: (error: unknown) => void; notify?: (message: string) => void }) {
@@ -839,8 +882,9 @@ function SharedItemCard({ row, accessToken, viewerToken, chooseQuantity, editNot
   const maximumForMe = Math.max(0, requested - claimed + mine)
   const myNote = row.notes.find((note) => note.isMine)
   const purchaserLabel = row.purchasedByNames?.length ? `Bought by ${row.purchasedByNames.join(', ')}` : 'Bought by another planner'
-  if (row.item.itemType === 'cash_fund') return <article className="item-card shared-item cash-fund-card"><div className="item-icon item-artwork"><Banknote /></div><div className="item-copy"><div className="item-title-row"><h3>{row.item.title}</h3>{row.item.contributionGoal != null && <strong>Goal: {currency(row.item.contributionGoal)}</strong>}</div>{row.item.ownerNote && <p>{row.item.ownerNote}</p>}{row.item.url && <a className="primary contribution-link" href={safeUrl(row.item.url)} target="_blank" rel="noreferrer">Contribute <ExternalLink /></a>}<small>Payment is completed through the recipient’s selected service. Hushful does not process or hold funds.</small></div></article>
-  return <article className={`item-card shared-item ${claimed >= requested ? 'purchased' : ''}`}><ItemArtwork item={row.item} claimed={claimed >= requested} accessToken={accessToken} viewerToken={viewerToken} /><div className="item-copy"><div className="item-title-row"><h3>{row.item.title}</h3>{row.item.price != null && <strong>{currency(row.item.price)}</strong>}</div><small>{claimed} of {requested} claimed</small>{row.purchasedByNames !== undefined && row.purchasedByOthers && <small className="planning-purchase-status"><PackageCheck /> {purchaserLabel}</small>}{row.item.ownerNote && <p>{row.item.ownerNote}</p>}{row.item.url && <a href={safeUrl(row.item.url)} target="_blank" rel="noreferrer">View item <ExternalLink /></a>}<div className="item-actions"><label className="quantity-choice"><span>You’re buying</span><select value={mine} onChange={(event) => chooseQuantity(Number(event.target.value))}>{Array.from({ length: maximumForMe + 1 }, (_, quantity) => <option key={quantity} value={quantity}>{quantity}</option>)}</select></label><button className="text-button" onClick={() => editNote(myNote)}>{myNote ? 'Edit your note' : 'Add a note'}</button></div>{row.notes.length > 0 && <div className="notes"><span>Notes</span>{row.notes.map((note, i) => <div className="note-row" key={`${note.updatedAt}-${i}`}><p><strong>{note.authorDisplayName || 'Anonymous'} · </strong>{note.note}</p>{note.isMine ? <div><button className="text-button" onClick={() => editNote(note)}>Edit</button><button className="text-button danger-text" onClick={() => { if (window.confirm('Remove your note?')) removeNote() }}>Remove</button></div> : note.stateID && accessToken && <button className="text-button" onClick={async () => { try { await api.reportItemNote(accessToken, note.stateID as string); notify?.('Thanks—your report was sent to Hushful.') } catch (error) { onError?.(error) } }}>Report</button>}</div>)}</div>}</div></article>
+  const addedAt = addedDate(row.item.createdAt)
+  if (row.item.itemType === 'cash_fund') return <article className="item-card shared-item cash-fund-card"><div className="item-icon item-artwork"><Banknote /></div><div className="item-copy"><div className="item-title-row"><h3>{row.item.title}</h3>{row.item.contributionGoal != null && <strong>Goal: {currency(row.item.contributionGoal)}</strong>}</div>{addedAt && <small className="item-added-date">Added {addedAt}</small>}{row.item.ownerNote && <p>{row.item.ownerNote}</p>}{row.item.url && <a className="primary contribution-link" href={safeUrl(row.item.url)} target="_blank" rel="noreferrer">Contribute <ExternalLink /></a>}<small>Payment is completed through the recipient’s selected service. Hushful does not process or hold funds.</small></div></article>
+  return <article className={`item-card shared-item ${claimed >= requested ? 'purchased' : ''}`}><ItemArtwork item={row.item} claimed={claimed >= requested} accessToken={accessToken} viewerToken={viewerToken} /><div className="item-copy"><div className="item-title-row"><h3>{row.item.title}</h3>{row.item.price != null && <strong>{currency(row.item.price)}</strong>}</div>{addedAt && <small className="item-added-date">Added {addedAt}</small>}<small>{claimed} of {requested} claimed</small>{row.purchasedByNames !== undefined && row.purchasedByOthers && <small className="planning-purchase-status"><PackageCheck /> {purchaserLabel}</small>}{row.item.ownerNote && <p>{row.item.ownerNote}</p>}{row.item.url && <a href={safeUrl(row.item.url)} target="_blank" rel="noreferrer">View item <ExternalLink /></a>}<div className="item-actions"><label className="quantity-choice"><span>You’re buying</span><select value={mine} onChange={(event) => chooseQuantity(Number(event.target.value))}>{Array.from({ length: maximumForMe + 1 }, (_, quantity) => <option key={quantity} value={quantity}>{quantity}</option>)}</select></label><button className="text-button" onClick={() => editNote(myNote)}>{myNote ? 'Edit your note' : 'Add a note'}</button></div>{row.notes.length > 0 && <div className="notes"><span>Notes</span>{row.notes.map((note, i) => <div className="note-row" key={`${note.updatedAt}-${i}`}><p><strong>{note.authorDisplayName || 'Anonymous'} · </strong>{note.note}</p>{note.isMine ? <div><button className="text-button" onClick={() => editNote(note)}>Edit</button><button className="text-button danger-text" onClick={() => { if (window.confirm('Remove your note?')) removeNote() }}>Remove</button></div> : note.stateID && accessToken && <button className="text-button" onClick={async () => { try { await api.reportItemNote(accessToken, note.stateID as string); notify?.('Thanks—your report was sent to Hushful.') } catch (error) { onError?.(error) } }}>Report</button>}</div>)}</div>}</div></article>
 }
 
 function ItemArtwork({ item, claimed = false, accessToken, viewerToken }: { item: WishlistItem; claimed?: boolean; accessToken?: string; viewerToken?: string }) {
@@ -1003,12 +1047,16 @@ function FriendProfileModal({ token, friendship, person, close, removed, added, 
   </div>}</Modal>
 }
 
-function ActivityModal({ token, items, changed, close, onError }: { token: string; items: ActivityItem[]; changed: (items: ActivityItem[]) => void; close: () => void; onError: (e: unknown) => void }) {
+function ActivityModal({ token, items, changed, close, openWishlist, onError }: { token: string; items: ActivityItem[]; changed: (items: ActivityItem[]) => void; close: () => void; openWishlist: (wishlistID: string) => void; onError: (e: unknown) => void }) {
   useEffect(() => { if (!items.some((item) => !item.readAt)) return; api.readAllActivity(token).then(() => changed(items.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })))).catch(onError) }, [items, changed, onError, token])
   async function remove(id: string, confirmed = false) { if (!confirmed && !window.confirm('Clear this activity entry? This cannot be undone.')) return; try { await api.deleteActivity(token, id); changed(items.filter((item) => item.id !== id)) } catch (e) { onError(e) } }
   async function resolve(item: ActivityItem, accept: boolean) { if (!item.actorID) return; if (!accept && !window.confirm('Decline this friend request? The request will be removed from your activity.')) return; try { if (accept) await api.acceptFriendFrom(token, item.actorID); else await api.declineFriendFrom(token, item.actorID); await remove(item.id, true) } catch (e) { onError(e) } }
   async function clearAll() { if (!window.confirm('Clear all activity? This cannot be undone.')) return; try { await api.clearActivity(token); changed([]) } catch (e) { onError(e) } }
-  return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="What’s new" title="Activity" close={close} /><div className="activity-list">{items.length ? <>{items.map((item) => <article className={`activity-item ${item.readAt ? '' : 'unread'}`} key={item.id}><span className="activity-icon">{item.kind === 'friend_request' || item.kind === 'friend_accepted' ? <Users /> : <Gift />}</span><div><strong>{item.title}</strong><p>{item.message}</p>{item.createdAt && <small>{new Date(item.createdAt).toLocaleString()}</small>}{item.kind === 'friend_request' && <div className="activity-actions"><button className="primary" onClick={() => void resolve(item, true)}>Accept</button><button className="secondary danger-text" onClick={() => void resolve(item, false)}>Decline</button></div>}</div><button className="icon-button" aria-label="Clear activity" onClick={() => void remove(item.id)}><X /></button></article>)}<div className="modal-actions"><button className="secondary danger-text" onClick={() => void clearAll()}><Trash2 /> Clear all</button></div></> : <EmptyState icon={<Bell />} title="You’re all caught up" text="Friend requests and shared-list updates will appear here." />}</div></Modal>
+  return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="What’s new" title="Activity" close={close} /><div className="activity-list">{items.length ? <>{items.map((item) => {
+    const canOpenWishlist = item.kind !== 'friend_request' && Boolean(item.wishlistID)
+    const openRelatedWishlist = () => { if (item.wishlistID) openWishlist(item.wishlistID) }
+    return <article className={`activity-item ${item.readAt ? '' : 'unread'}`} key={item.id}><span className="activity-icon">{item.kind === 'friend_request' || item.kind === 'friend_accepted' ? <Users /> : <Gift />}</span><div className={`activity-item-content${canOpenWishlist ? ' clickable' : ''}`} role={canOpenWishlist ? 'button' : undefined} tabIndex={canOpenWishlist ? 0 : undefined} onClick={() => { if (canOpenWishlist) openRelatedWishlist() }} onKeyDown={(event) => { if (canOpenWishlist && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openRelatedWishlist() } }}><strong>{item.title}</strong><p>{item.message}</p>{item.createdAt && <small>{new Date(item.createdAt).toLocaleString()}</small>}{item.kind === 'friend_request' && <div className="activity-actions"><button className="primary" onClick={() => void resolve(item, true)}>Accept</button><button className="secondary danger-text" onClick={() => void resolve(item, false)}>Decline</button></div>}</div><button className="icon-button" aria-label="Clear activity" onClick={() => void remove(item.id)}><X /></button></article>
+  })}<div className="modal-actions"><button className="secondary danger-text" onClick={() => void clearAll()}><Trash2 /> Clear all</button></div></> : <EmptyState icon={<Bell />} title="You’re all caught up" text="Friend requests and shared-list updates will appear here." />}</div></Modal>
 }
 
 function SocialRow({ person, action }: { person: SocialUser; action: ReactNode }) { return <div className="social-row"><Avatar name={person.displayName || person.username} userId={person.id} hasAvatar={person.hasAvatar} /><span><strong>{person.displayName || `@${person.username}`}</strong><small>@{person.username}</small></span>{action}</div> }
