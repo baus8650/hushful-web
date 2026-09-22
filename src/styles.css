@@ -274,6 +274,8 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .profile-details-panel>div:first-child strong,.profile-details-panel>div:first-child small { display:block; }
 .profile-details-panel>div:first-child small { color:var(--muted); margin-top:3px; }
 .profile-attribute-editor { display:grid; grid-template-columns:1fr 1fr auto auto; gap:8px; align-items:center; }
+.profile-attribute-audience { grid-column:1 / -1; display:grid; gap:4px; padding:8px 0 0; }
+.profile-attribute-audience .checkbox { margin:0; }
 .profile-attribute-list { display:grid; gap:8px; }
 .profile-attribute-row { display:flex; justify-content:space-between; gap:16px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--cream); }
 .profile-attribute-row span { color:var(--muted); text-align:right; }

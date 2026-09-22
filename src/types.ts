@@ -24,7 +24,7 @@ export interface WishlistSettings {
   matureContentEnabled?: boolean
 }
 export interface ProfileWishlist { wishlistID: string; title: string; accountShareID?: string }
-export interface ProfileAttribute { id?: string; label: string; value: string; visibility: 'public' | 'friends' | 'private' }
+export interface ProfileAttribute { id?: string; label: string; value: string; visibility: 'public' | 'friends' | 'selected' | 'private'; selectedUserIDs?: string[] }
 export interface ProfileDetails { matureProfileEnabled?: boolean; birthdayYear?: number; birthdayMonth?: number; birthdayDay?: number; birthdayVisibility: 'public' | 'friends' | 'private'; birthdaySetupCompleted: boolean; attributes: ProfileAttribute[] }
 export interface BirthdayAlert { enabled: boolean; reminderDaysBefore: number }
 export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; jointWishlists?: ProfileWishlist[]; sharedWishlists: ProfileWishlist[]; birthdayMonth?: number; birthdayDay?: number; attributes?: ProfileAttribute[]; birthdayAlertEnabled?: boolean; birthdayAlertDaysBefore?: number }
