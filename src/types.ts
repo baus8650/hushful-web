@@ -27,7 +27,7 @@ export interface ProfileWishlist { wishlistID: string; title: string; accountSha
 export interface ProfileAttribute { id?: string; label: string; value: string; visibility: 'public' | 'friends' | 'private' }
 export interface ProfileDetails { matureProfileEnabled?: boolean; birthdayYear?: number; birthdayMonth?: number; birthdayDay?: number; birthdayVisibility: 'public' | 'friends' | 'private'; birthdaySetupCompleted: boolean; attributes: ProfileAttribute[] }
 export interface BirthdayAlert { enabled: boolean; reminderDaysBefore: number }
-export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; sharedWishlists: ProfileWishlist[]; birthdayMonth?: number; birthdayDay?: number; attributes?: ProfileAttribute[]; birthdayAlertEnabled?: boolean; birthdayAlertDaysBefore?: number }
+export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; jointWishlists?: ProfileWishlist[]; sharedWishlists: ProfileWishlist[]; birthdayMonth?: number; birthdayDay?: number; attributes?: ProfileAttribute[]; birthdayAlertEnabled?: boolean; birthdayAlertDaysBefore?: number }
 export interface Pins { wishlistIDs: string[]; userIDs: string[]; groupIDs: string[] }
 export interface WishlistItem {
   id: string; title: string; url?: string; price?: number; ownerNote?: string; quantity?: number;
