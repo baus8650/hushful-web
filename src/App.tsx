@@ -517,7 +517,7 @@ function GoogleSignInButton({
 
       window.google.accounts.id.renderButton(container.current, {
         type: 'standard',
-        theme: theme === 'dark' ? 'filled_black' : 'outline',
+        theme: 'outline',
         size: 'large',
         shape: 'pill',
         text: 'continue_with',
