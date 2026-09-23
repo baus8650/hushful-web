@@ -54,7 +54,19 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .auth-error,.form-error { margin:0; padding:12px 14px; border:1px solid #e4c3bd; border-radius:12px; background:#faeeeb; color:#874a42; font-size:.88rem; line-height:1.45; }
 .auth-divider { display:flex; align-items:center; gap:12px; margin:20px 0 14px; color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; }
 .auth-divider::before,.auth-divider::after { content:""; height:1px; background:var(--line); flex:1; }
-.google-sign-in { display:flex; justify-content:center; min-height:44px; margin-top:10px; overflow:hidden; }
+.google-sign-in {
+  width: 100%;
+  background: transparent !important;
+  border: none;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.google-sign-in > div {
+  background: transparent !important;
+}
 .apple-sign-in { width:100%; min-height:44px; display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:999px; background:#000; color:#fff; font:inherit; font-weight:600; cursor:pointer; }
 .apple-sign-in:hover:not(:disabled) { background:#1d1d1f; }
 .apple-sign-in:disabled { cursor:wait; opacity:.7; }

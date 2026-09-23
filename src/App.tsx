@@ -522,7 +522,7 @@ function GoogleSignInButton({
         shape: 'pill',
         text: 'continue_with',
         logo_alignment: 'left',
-        width: 360,
+        width: container.current.offsetWidth,
       })
     }, 50)
 
