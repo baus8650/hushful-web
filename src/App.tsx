@@ -409,37 +409,134 @@ function AppleSignInButton({ onAuthenticated, onError, register, termsAccepted, 
   return <button type="button" className="apple-sign-in" onClick={() => void signIn()} disabled={busy}>{busy && <LoaderCircle className="spin" />} <span aria-hidden="true"></span> Continue with Apple</button>
 }
 
-function GoogleSignInButton({ onAuthenticated, onError, onAdminFactorRequired, register, termsAccepted, ageConfirmed }: { onAuthenticated: (token: string) => void; onError: (e: unknown) => void; onAdminFactorRequired: (credential: string) => void; register: boolean; termsAccepted: boolean; ageConfirmed: boolean }) {
+function GoogleSignInButton({
+  onAuthenticated,
+  onError,
+  onAdminFactorRequired,
+  register,
+  termsAccepted,
+  ageConfirmed,
+}: {
+  onAuthenticated: (token: string) => void
+  onError: (e: unknown) => void
+  onAdminFactorRequired: (credential: string) => void
+  register: boolean
+  termsAccepted: boolean
+  ageConfirmed: boolean
+}) {
   const container = useRef<HTMLDivElement>(null)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+  )
+
+  // Watch Hushful's existing data-theme attribute
   useEffect(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+    const observer = new MutationObserver(() => {
+      setTheme(
+        document.documentElement.dataset.theme === 'dark'
+          ? 'dark'
+          : 'light'
+      )
+    })
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+      | string
+      | undefined
+
     if (!clientId) return
+
     let attempts = 0
+
     const timer = window.setInterval(() => {
       attempts += 1
+
       if (!window.google || !container.current) {
         if (attempts >= 100) window.clearInterval(timer)
         return
       }
+
       window.clearInterval(timer)
+
       window.google.accounts.id.initialize({
         client_id: clientId,
+
         callback: async ({ credential }) => {
           try {
-            if (register && !termsAccepted) { onError(new Error('Please accept the Terms of Use and Privacy Policy first.')); return }
-            if (register && !ageConfirmed) { onError(new Error('Please confirm that you are at least 13 years old first.')); return }
-            onAuthenticated((await api.googleLogin(credential, register ? CURRENT_TERMS_VERSION : undefined, undefined, ageConfirmed)).accessToken)
+            if (register && !termsAccepted) {
+              onError(
+                new Error(
+                  'Please accept the Terms of Use and Privacy Policy first.'
+                )
+              )
+              return
+            }
+
+            if (register && !ageConfirmed) {
+              onError(
+                new Error(
+                  'Please confirm that you are at least 13 years old first.'
+                )
+              )
+              return
+            }
+
+            onAuthenticated(
+              (
+                await api.googleLogin(
+                  credential,
+                  register ? CURRENT_TERMS_VERSION : undefined,
+                  undefined,
+                  ageConfirmed
+                )
+              ).accessToken
+            )
+          } catch (error) {
+            if (
+              error instanceof ApiError &&
+              error.status === 401 &&
+              error.message.includes('Admin verification required')
+            ) {
+              onAdminFactorRequired(credential)
+            } else {
+              onError(error)
+            }
           }
-          catch (error) { if (error instanceof ApiError && error.status === 401 && error.message.includes('Admin verification required')) onAdminFactorRequired(credential); else onError(error) }
         },
       })
+
       container.current.replaceChildren()
+
       window.google.accounts.id.renderButton(container.current, {
-        type: 'standard', theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: 360,
+        type: 'standard',
+        theme: theme === 'dark' ? 'filled_black' : 'outline',
+        size: 'large',
+        shape: 'pill',
+        text: 'continue_with',
+        logo_alignment: 'left',
+        width: 360,
       })
     }, 50)
+
     return () => window.clearInterval(timer)
-  }, [onAuthenticated, onError, onAdminFactorRequired, register, termsAccepted, ageConfirmed])
+  }, [
+    onAuthenticated,
+    onError,
+    onAdminFactorRequired,
+    register,
+    termsAccepted,
+    ageConfirmed,
+    theme,
+  ])
+
   return <div className="google-sign-in" ref={container} />
 }
 
