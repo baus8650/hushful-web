@@ -60,6 +60,8 @@ export const api = {
   register: (email: string, password: string, displayName: string, acceptedTermsVersion = CURRENT_TERMS_VERSION, ageConfirmed = false) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName, website: '', acceptedTermsVersion, ageConfirmed }) }),
   login: (email: string, password: string, totpCode?: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password, ...(totpCode ? { totpCode } : {}) }) }),
   googleLogin: (idToken: string, acceptedTermsVersion?: string, totpCode?: string, ageConfirmed = false) => request<TokenResponse>('/v1/auth/google', { method: 'POST', body: JSON.stringify({ idToken, ...(acceptedTermsVersion ? { acceptedTermsVersion, ageConfirmed } : {}), ...(totpCode ? { totpCode } : {}) }) }),
+  appleNonce: () => request<{ nonce: string }>('/v1/auth/apple/nonce', { method: 'POST' }),
+  appleWebLogin: (identityToken: string, nonce: string, fullName?: string, acceptedTermsVersion?: string, ageConfirmed = false) => request<TokenResponse>('/v1/auth/apple/web', { method: 'POST', body: JSON.stringify({ identityToken, nonce, ...(fullName ? { fullName } : {}), ...(acceptedTermsVersion ? { acceptedTermsVersion, ageConfirmed } : {}) }) }),
   verifyEmail: (token: string) => request<TokenResponse>('/v1/auth/verify-email', { method: 'POST', body: JSON.stringify({ token }) }),
   resendEmailVerification: (email: string) => request<{ message: string }>('/v1/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email }) }),
   forgotPassword: (email: string) => request<{ message: string }>('/v1/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),

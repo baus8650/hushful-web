@@ -344,6 +344,7 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
       </form>
       {mode !== 'forgot' && <>
         <div className="auth-divider"><span>or</span></div>
+        <AppleSignInButton onAuthenticated={onAuthenticated} onError={onError} register={register} termsAccepted={termsAccepted} ageConfirmed={ageConfirmed} />
         <GoogleSignInButton onAuthenticated={onAuthenticated} onError={onError} onAdminFactorRequired={(credential) => { setPendingGoogleCredential(credential); setAdminFactorRequired(true); setFormError('Enter the 6-digit code from your authenticator app. A recovery code also works.') }} register={register} termsAccepted={termsAccepted} ageConfirmed={ageConfirmed} />
       </>}
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => { setMessage(''); setFormError(''); setMode('forgot') }}>Forgot password?</button>}
@@ -354,6 +355,58 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
     </section>
     <PublicFooter />
   </main>
+}
+
+let appleScript: Promise<void> | undefined
+
+function loadAppleScript(): Promise<void> {
+  if (window.AppleID) return Promise.resolve()
+  if (!appleScript) {
+    appleScript = new Promise((resolve, reject) => {
+      const existing = document.querySelector<HTMLScriptElement>('script[data-hushful-apple-sign-in]')
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once: true })
+        existing.addEventListener('error', () => reject(new Error('Apple sign-in could not be loaded.')), { once: true })
+        return
+      }
+      const script = document.createElement('script')
+      script.src = 'https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js'
+      script.async = true
+      script.dataset.hushfulAppleSignIn = 'true'
+      script.onload = () => resolve()
+      script.onerror = () => reject(new Error('Apple sign-in could not be loaded.'))
+      document.head.append(script)
+    })
+  }
+  return appleScript
+}
+
+function AppleSignInButton({ onAuthenticated, onError, register, termsAccepted, ageConfirmed }: { onAuthenticated: (token: string) => void; onError: (e: unknown) => void; register: boolean; termsAccepted: boolean; ageConfirmed: boolean }) {
+  const clientID = ((import.meta.env.VITE_APPLE_WEB_CLIENT_ID as string | undefined) || '').trim()
+  const redirectURI = (import.meta.env.VITE_APPLE_WEB_REDIRECT_URI as string | undefined) || window.location.origin
+  const [busy, setBusy] = useState(false)
+
+  if (!clientID) return null
+
+  async function signIn() {
+    if (register && !termsAccepted) { onError(new Error('Please accept the Terms of Use and Privacy Policy first.')); return }
+    if (register && !ageConfirmed) { onError(new Error('Please confirm that you are at least 13 years old first.')); return }
+    setBusy(true)
+    try {
+      const { nonce } = await api.appleNonce()
+      await loadAppleScript()
+      if (!window.AppleID) throw new Error('Apple sign-in could not be initialized.')
+      window.AppleID.auth.init({ clientId: clientID, scope: 'name email', redirectURI, nonce, usePopup: true })
+      const response = await window.AppleID.auth.signIn()
+      const name = [response.user?.name?.firstName, response.user?.name?.lastName].filter(Boolean).join(' ')
+      onAuthenticated((await api.appleWebLogin(response.authorization.id_token, nonce, name || undefined, register ? CURRENT_TERMS_VERSION : undefined, ageConfirmed)).accessToken)
+    } catch (error) {
+      // Closing Apple's sheet is an expected choice, not an account error.
+      if (!(error instanceof Error && /popup_closed_by_user|user_cancelled_authorize/i.test(error.message))) onError(error)
+    } finally { setBusy(false) }
+  }
+
+  return <button type="button" className="apple-sign-in" onClick={() => void signIn()} disabled={busy}>{busy && <LoaderCircle className="spin" />} <span aria-hidden="true"></span> Continue with Apple</button>
 }
 
 function GoogleSignInButton({ onAuthenticated, onError, onAdminFactorRequired, register, termsAccepted, ageConfirmed }: { onAuthenticated: (token: string) => void; onError: (e: unknown) => void; onAdminFactorRequired: (credential: string) => void; register: boolean; termsAccepted: boolean; ageConfirmed: boolean }) {
