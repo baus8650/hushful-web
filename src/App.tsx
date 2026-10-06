@@ -5,6 +5,7 @@ import { authStorage, shareStorage } from './storage'
 import type { AccountSharedWishlist, ActivityItem, AdminAccount, AdminAccountActivity, CurrentUser, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileWishlist, RecurringOccasion, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistDiscussionComment, WishlistItem } from './types'
 import { LegalPage, PublicFooter } from './LegalPages'
 import { legalRoute } from './legalRouting'
+import { APP_STORE_URL } from './appLinks'
 
 import { FREE_LIST_LIMIT, activeOwnedListCount, canCreateWishlist } from './proAccess'
 
@@ -73,8 +74,9 @@ function ProPlan({ isPro, activeLists }: { isPro: boolean; activeLists?: number 
     <p>{isPro ? 'Your account has access to all Pro features available on the web.' : `Free includes up to ${FREE_LIST_LIMIT} active lists, unlimited wishes, sharing, and gift coordination.`}</p>
     {!isPro && activeLists !== undefined && <p className="hint">{activeLists} of {FREE_LIST_LIMIT} active lists used. Lists owned by someone else don’t count toward your limit.</p>}
     <p>Pro unlocks unlimited active lists, recurring occasions, and cash funds on the web. The iOS app also includes templates, styling, insights, export, and duplication.</p>
-    {!isPro && <p>To unlock additional functionality, download the Hushful iOS app and upgrade to Pro once it launches. Use the same Hushful account on both devices.</p>}
-    <p className="hint">Hushful Pro is available through supported mobile builds; web payments are not available.</p>
+    {!isPro && <p>To unlock additional functionality, <a href={APP_STORE_URL} target="_blank" rel="noreferrer">download Hushful on the App Store</a> and upgrade to Pro. Use the same Hushful account on both devices.</p>}
+    <a className="secondary wide app-store-link" href={APP_STORE_URL} target="_blank" rel="noreferrer">Download on the App Store <ExternalLink aria-hidden="true" /></a>
+    <p className="hint">Hushful Pro is available in the iOS app; web payments are not available.</p>
   </section>
 }
 
@@ -351,7 +353,8 @@ function AuthScreen({ onAuthenticated, onError }: { onAuthenticated: (token: str
       {mode === 'login' && <button className="text-button auth-switch" onClick={() => void resendVerification()} disabled={busy || !email}>Need a verification link?</button>}
       <button className="text-button auth-switch" onClick={() => { setMessage(''); setFormError(''); setConfirmPassword(''); setAgeConfirmed(false); setTermsAccepted(false); setMode(mode === 'login' ? 'register' : 'login') }}>{mode === 'register' ? 'Already have an account? Sign in' : mode === 'forgot' ? 'Back to sign in' : 'New to Hushful? Create an account'}</button>
       </>}
-    <p className="hint">Hushful Pro is available through supported mobile builds; web payments are not available.</p>
+    <a className="secondary wide app-store-link" href={APP_STORE_URL} target="_blank" rel="noreferrer">Download on the App Store <ExternalLink aria-hidden="true" /></a>
+    <p className="hint">Hushful Pro is available in the iOS app; web payments are not available.</p>
     </section>
     <PublicFooter />
   </main>

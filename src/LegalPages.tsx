@@ -1,10 +1,12 @@
 import { ArrowLeft, ExternalLink, Gift, Mail, ShieldCheck, Sparkles } from 'lucide-react'
 import type { PublicPage } from './legalRouting'
+import { APP_STORE_URL } from './appLinks'
 
 export function PublicFooter() {
   return <footer className="public-footer">
     <span>Private by design · Share only with the people you choose</span>
     <nav aria-label="Legal and support">
+      <a href={APP_STORE_URL} target="_blank" rel="noreferrer">App Store</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
