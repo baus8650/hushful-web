@@ -6,14 +6,14 @@ export function LandingPage() {
   return <div className="public-shell landing-shell">
     <header className="public-header">
       <a className="public-logo" href="/" aria-label="Hushful home"><span><Sparkles /></span><strong>hushful</strong></a>
-      <a className="secondary" href="/login">Open web app</a>
+      <a className="secondary" href="/login">Log in</a>
     </header>
     <main className="legal-page landing-page">
       <section className="landing-hero">
         <p className="eyebrow">Wishlists for iPhone, iPad, and the web</p>
         <h1>Your wishlist. Shared with anyone.</h1>
         <p className="landing-intro">For birthdays, holidays, wedding registries, baby showers, and everything worth celebrating. Save gift ideas from any store, share your wishlist with family and friends, and let them coordinate gifts without spoiling the surprise.</p>
-        <div className="landing-actions"><a className="primary" href={APP_STORE_URL} target="_blank" rel="noreferrer">Download on the App Store <ExternalLink aria-hidden="true" /></a><a className="secondary" href="/login">Create a wishlist on the web</a></div>
+        <div className="landing-actions"><a className="primary" href={APP_STORE_URL} target="_blank" rel="noreferrer">Download on the App Store <ExternalLink aria-hidden="true" /></a><a className="secondary" href="/login?signup=1">Create an account</a></div>
         <p className="hint">Free to use. Optional lifetime Pro upgrade. No subscription.</p>
       </section>
       <section><h2>A wishlist for every occasion</h2><p>From birthdays and holidays to wedding registries and baby showers, Hushful brings gift ideas from any store into one shared wishlist. Keep links, photos, prices, and notes together instead of scattered across messages.</p></section>
@@ -49,10 +49,10 @@ export function LandingPage() {
       <section><h2>Questions about Hushful</h2>
         <h3>Is Hushful free?</h3><p>Yes. Free accounts include up to three active lists, unlimited wishes, sharing, and gift coordination. An optional one-time Pro purchase unlocks additional features.</p>
         <h3>Do friends need the app to use my wishlist?</h3><p>No. Share a guest link so they can open your wishlist in a web browser without an app or account.</p>
-        <h3>Can I use Hushful on a computer?</h3><p>Yes. <a href="/login">Open the web app</a> to create and manage your wishlists in your browser.</p>
+        <h3>Can I use Hushful on a computer?</h3><p>Yes. <a href="/login">Log in</a> to create and manage your wishlists in your browser.</p>
         <h3>Can the wishlist owner see who claimed a gift?</h3><p>Gift claims, item coordination notes, and the shared list’s gift-planning discussion are hidden from every wishlist owner. Discussions inside a joint list are visible to its collaborators.</p>
       </section>
-      <section><h2>Start your next wishlist</h2><p>Get ready for the holidays or your next celebration.</p><a className="primary" href="/login">Get started free</a></section>
+      <section><h2>Start your next wishlist</h2><p>Get ready for the holidays or your next celebration.</p><a className="primary" href="/login?signup=1">Create an account</a></section>
     </main>
     <PublicFooter />
   </div>
