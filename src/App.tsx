@@ -6,6 +6,7 @@ import type { AccountSharedWishlist, ActivityItem, AdminAccount, AdminAccountAct
 import { LegalPage, PublicFooter } from './LegalPages'
 import { legalRoute } from './legalRouting'
 import { APP_STORE_URL } from './appLinks'
+import { LandingPage } from './LandingPage'
 
 import { FREE_LIST_LIMIT, activeOwnedListCount, canCreateWishlist } from './proAccess'
 
@@ -50,7 +51,7 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [toast])
   useEffect(() => {
-    const path = guestShareToken ? '/share' : resetToken ? '/reset-password' : verificationToken ? '/verify-email' : token ? '/app' : '/login'
+    const path = guestShareToken ? '/share' : resetToken ? '/reset-password' : verificationToken ? '/verify-email' : token ? '/app' : window.location.pathname === '/' ? '/' : '/login'
     void api.trackPageView(metricsVisitorID(), path, Boolean(token)).catch(() => undefined)
   }, [guestShareToken, resetToken, verificationToken, token])
 
@@ -59,6 +60,7 @@ export default function App() {
   if (verificationToken) return <>{themeToggle}<VerifyEmailScreen token={verificationToken} onAuthenticated={(accessToken) => { window.history.replaceState({}, '', '/'); authStorage.set(accessToken); setLoading(true); setToken(accessToken) }} /></>
   if (guestShareToken) return <>{themeToggle}<GuestShareScreen shareToken={guestShareToken} /></>
   if (loading) return <FullPageLoader />
+  if (!token && window.location.pathname === '/' && !resetToken && !verificationToken) return <>{themeToggle}<LandingPage /></>
   if (!token || !user) return <>{themeToggle}<AuthScreen onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} /></>
   if (onboardingActive) return <>{themeToggle}<OnboardingFlow token={token} user={user} userChanged={setUser} finish={async () => { try { setUser(await api.updateProfile(token, { onboardingVersion: 1 })); setOnboardingActive(false) } catch (error) { onError(error) } }} logout={logout} /></>
   return <>

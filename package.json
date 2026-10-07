@@ -5,12 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prerender.mjs",
     "build:release": "npm run generate:assetlinks && npm run build",
     "generate:assetlinks": "node scripts/generate-assetlinks.mjs",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:seo": "node --test tests/seo.build.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.4.1",
