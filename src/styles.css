@@ -419,3 +419,7 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .landing-features { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
 .landing-features h2 { font-size:1.65rem; }
 @media(max-width:600px) { .landing-features { grid-template-columns:1fr; } .landing-actions { flex-direction:column; } }
+
+.sale-price { color: #167346; }
+.item-price small, .shared-notifications small { display: block; color: var(--muted); }
+.shared-notifications { margin-top: 12px; }

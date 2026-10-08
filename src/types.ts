@@ -30,13 +30,14 @@ export interface BirthdayAlert { enabled: boolean; reminderDaysBefore: number }
 export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; jointWishlists?: ProfileWishlist[]; sharedWishlists: ProfileWishlist[]; birthdayMonth?: number; birthdayDay?: number; attributes?: ProfileAttribute[]; birthdayAlertEnabled?: boolean; birthdayAlertDaysBefore?: number }
 export interface Pins { wishlistIDs: string[]; userIDs: string[]; groupIDs: string[] }
 export interface WishlistItem {
+  salePrice?: number; saleDiscountPercent?: number; saleEndsAt?: string;
   id: string; title: string; url?: string; price?: number; ownerNote?: string; quantity?: number;
   itemType?: 'wish' | 'cash_fund'; contributionGoal?: number;
   createdAt: string; updatedAt: string; wishlist: { id: string }
 }
 export interface SharedWishlist { shareToken: string; title: string; sharedByName?: string; accountShareID?: string; wishlistID?: string; matureContentEnabled?: boolean }
 export interface GuestShareLink { id: string; createdAt?: string; expiresAt?: string }
-export interface AccountSharedWishlist { id: string; wishlistID: string; title: string; sharedByName: string; matureContentEnabled?: boolean }
+export interface AccountSharedWishlist { notificationsEnabled?: boolean; id: string; wishlistID: string; title: string; sharedByName: string; matureContentEnabled?: boolean }
 export interface SharedNote { stateID?: string; authorDisplayName?: string; updatedAt?: string; note: string; isMine?: boolean }
 export interface WishlistDiscussionComment { id: string; message: string; authorDisplayName?: string; createdAt?: string; isMine: boolean }
 export interface UserFeedback { id: string; category: string; message: string; platform: string; userID: string; userEmail?: string; userDisplayName?: string; shareName?: boolean; purchaseEvidence?: string; purchaseEvidenceDetails?: string; purchaseProvider?: string; purchaseOrderID?: string; purchaseAt?: string; status?: 'open' | 'closed'; archived?: boolean; createdAt?: string }
