@@ -828,6 +828,8 @@ function WishlistDetail({ token, wishlist, allWishlists, canUseMatureContent, pi
   const [loading, setLoading] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [deletingList, setDeletingList] = useState(false)
+  const [removal, setRemoval] = useState<{ item: WishlistItem; lists: Wishlist[]; selected: string[] } | null>(null)
+  const [removing, setRemoving] = useState(false)
   const [editingItem, setEditingItem] = useState<WishlistItem | null>(null)
   const [sharing, setSharing] = useState(false)
   const [guestLinksOpen, setGuestLinksOpen] = useState(false)
@@ -841,9 +843,27 @@ function WishlistDetail({ token, wishlist, allWishlists, canUseMatureContent, pi
   const load = useCallback(async () => { setLoading(true); try { const [loadedItems, planning] = await Promise.all([api.items(token, wishlist.id), wishlist.collaborationMode === 'gift_planning' ? api.giftPlanningItems(token, wishlist.id) : Promise.resolve([])]); setItems(loadedItems); setPlanningRows(Object.fromEntries(planning.map((row) => [row.item.id, row]))) } catch (e) { onError(e) } finally { setLoading(false) } }, [token, wishlist.id, wishlist.collaborationMode, onError])
   useEffect(() => { void load() }, [load])
   useEffect(() => { api.wishlistMentionCandidates(token, wishlist.id).then(setMentionCandidates).catch(() => setMentionCandidates([])) }, [token, wishlist.id])
-  async function remove(item: WishlistItem) { if (!window.confirm(`Remove “${item.title}” from this wishlist? If it is linked to other wishlists, it will remain there.`)) return; const old = items; setItems((all) => all.filter((i) => i.id !== item.id)); try { await api.deleteItem(token, wishlist.id, item.id); notify('Item removed') } catch (e) { setItems(old); onError(e) } }
+  async function remove(item: WishlistItem) {
+    try {
+      const links = await api.itemLinks(token, wishlist.id, item.id)
+      const lists = allWishlists.filter((list) => links.wishlistIDs.includes(list.id))
+      if (!lists.some((list) => list.id === wishlist.id)) lists.push(wishlist)
+      setRemoval({ item, lists, selected: [wishlist.id] })
+    } catch (e) { onError(e) }
+  }
+  async function confirmRemoval() {
+    if (!removal || removing) return
+    setRemoving(true)
+    try {
+      for (const id of removal.selected) await api.deleteItem(token, id, removal.item.id)
+      setRemoval(null)
+      notify('Item removed from selected lists')
+    } catch (e) { setRemoval(null); onError(e) }
+    finally { setRemoving(false); await load() }
+  }
   const visibleItems = items.filter((item) => (!pricedOnly || item.price != null) && (!query.trim() || item.title.toLowerCase().includes(query.toLowerCase()) || item.ownerNote?.toLowerCase().includes(query.toLowerCase()))).sort((a, b) => sort === 'name' ? a.title.localeCompare(b.title) : sort === 'price-low' ? (salePrice(a) ?? a.price ?? Infinity) - (salePrice(b) ?? b.price ?? Infinity) : sort === 'price-high' ? (salePrice(b) ?? b.price ?? -Infinity) - (salePrice(a) ?? a.price ?? -Infinity) : sort === 'newest' ? Date.parse(b.createdAt) - Date.parse(a.createdAt) : 0)
   return <div className="page detail-page">
+    {removal && <Modal close={() => { if (!removing) setRemoval(null) }}><ModalHeader eyebrow="Choose lists" title={`Remove “${removal.item.title}”?`} close={() => { if (!removing) setRemoval(null) }} /><p className="muted modal-copy">Choose which lists to remove this item from. Removing it from all its lists deletes it.</p><div className="stack-form">{removal.lists.map((list) => <label className="checkbox" key={list.id}><input type="checkbox" disabled={removing} checked={removal.selected.includes(list.id)} onChange={(e) => setRemoval({ ...removal, selected: e.target.checked ? [...removal.selected, list.id] : removal.selected.filter((id) => id !== list.id) })} /><span>{list.title}</span></label>)}</div><div className="modal-actions"><button className="secondary" disabled={removing} onClick={() => setRemoval({ ...removal, selected: removal.lists.map((list) => list.id) })}>Select all lists</button><button className="secondary" disabled={removing} onClick={() => setRemoval(null)}>Cancel</button><button className="primary" disabled={removing || !removal.selected.length} onClick={() => void confirmRemoval()}>{removing ? 'Removing…' : 'Remove'}</button></div></Modal>}
     <header className="page-heading"><div><p className="eyebrow">{wishlist.isPrimaryOwner === false ? 'Collaborative wishlist' : 'My wishlist'}</p><h1>{wishlist.title}</h1><p>{wishlist.description || `${items.length} ${items.length === 1 ? 'wish' : 'wishes'} tucked away`} · {wishlist.visibility === 'public' ? 'Public' : 'Private'}</p></div><div className="heading-actions"><button className="secondary" onClick={() => setRenaming(true)}><Pencil /> Rename</button><button className="secondary" onClick={() => setEditingDescription(true)}><Pencil /> Description</button><button className="secondary" onClick={() => setCollaborating(true)}><Users /> Owners & purpose</button><button className="secondary" onClick={togglePin}><Pin /> {pinned ? 'Unpin' : 'Pin'}</button>{wishlist.isPrimaryOwner !== false && <><button className="secondary" onClick={() => setSharing(true)}><Share2 /> Sharing & privacy</button><button className="secondary" onClick={() => setGuestLinksOpen(true)}><Link2 /> Guest links</button></>}<button className="primary" onClick={() => setAddOpen(true)}><Plus /> Add item</button></div></header>
     <div className="heading-actions"><input aria-label="Search this list" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search this list" /><select aria-label="Sort items" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}><option value="manual">Manual order</option><option value="name">Name</option><option value="price-low">Price: low to high</option><option value="price-high">Price: high to low</option><option value="newest">Newest</option></select><label className="checkbox"><input type="checkbox" checked={pricedOnly} onChange={(e) => setPricedOnly(e.target.checked)} /><span>Priced items only</span></label></div>
     {wishlist.isCollaborative && <DiscussionPanel token={token} wishlistID={wishlist.id} defaultName={''} onError={onError} />}
