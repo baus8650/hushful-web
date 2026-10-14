@@ -31,6 +31,8 @@ function documentFor(path, title, description, content, indexable) {
 await writeFile('dist/app.html', documentFor('/login', 'Sign In | Hushful', 'Sign in to create and manage your Hushful wishlists.', '', false))
 await mkdir('dist/login', { recursive: true })
 await writeFile('dist/login/index.html', documentFor('/login', 'Sign In | Hushful', 'Sign in to create and manage your Hushful wishlists.', '', false))
+await mkdir('dist/metrics', { recursive: true })
+await writeFile('dist/metrics/index.html', documentFor('/metrics', 'Analytics | Hushful', 'Private Hushful analytics dashboard for administrators.', '', false))
 const server = await createServer({
   server: { middlewareMode: true, hmr: false, watch: null },
   appType: 'custom',
@@ -47,5 +49,5 @@ try {
   }
 } finally { await server.close() }
 await writeFile('dist/sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${pages.map(([path]) => `  <url><loc>${origin}${path}</loc></url>`).join('\n')}\n</urlset>\n`)
-await writeFile('dist/robots.txt', `User-agent: *\nAllow: /\n\nSitemap: ${origin}/sitemap.xml\n`)
+await writeFile('dist/robots.txt', `User-agent: *\nAllow: /\nDisallow: /metrics\n\nSitemap: ${origin}/sitemap.xml\n`)
 console.log(`Prerendered ${pages.length} public pages, login, sitemap, and robots.txt.`)
