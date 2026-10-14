@@ -1,3 +1,4 @@
+import type { UsageDashboard } from './usageMetrics'
 import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, AdminAccountActivity, AdminProGrant, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FeedbackThread, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
 const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? ''
@@ -81,6 +82,8 @@ export const api = {
   removeAvatar: (token: string) => avatarRequest(token, 'DELETE'),
   uploadItemImage: (token: string, wishlistId: string, itemId: string, file: File) => itemImageRequest(token, wishlistId, itemId, 'PUT', file),
   removeItemImage: (token: string, wishlistId: string, itemId: string) => itemImageRequest(token, wishlistId, itemId, 'DELETE'),
+  trackUsage: (body: Record<string, unknown>) => request<void>('/v1/metrics/usage-events', { method: 'POST', body: JSON.stringify(body), credentials: 'omit', keepalive: true, referrerPolicy: 'no-referrer' }),
+  usageMetrics: (token: string, days = 30) => request<UsageDashboard>(`/v1/metrics/usage-summary?days=${days}`, { headers: auth(token) }),
   trackPageView: (visitorID: string, path: string, signedIn: boolean) => request<void>('/v1/metrics/events', { method: 'POST', body: JSON.stringify({ visitorID, path, signedIn }) }),
   metricsSummary: (token: string, days = 30) => request<{ days: number; views: number; visitors: number; signedInViews: number; totalAccounts: number; newAccounts: number; daily: Array<{ date: string; views: number; visitors: number; signups: number }>; topPaths: Array<{ path: string; views: number }> }>(`/v1/metrics/summary?days=${days}`, { headers: auth(token) }),
   submitFeedback: (token: string, category: string, message: string) => request<UserFeedback>('/v1/feedback', { method: 'POST', headers: auth(token), body: JSON.stringify({ category, message, platform: 'web', shareName: category === 'purchase' }) }),

@@ -1,3 +1,5 @@
+import { trackUsage } from './usageMetrics'
+import { UsageMetricsPanel } from './UsageMetricsPanel'
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { Banknote, Bell, CalendarDays, Check, ChevronRight, CircleAlert, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, MessageCircle, Moon, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, ShieldCheck, Sparkles, Sun, Trash2, User, Users, X } from 'lucide-react'
 import { api, ApiError, CURRENT_TERMS_VERSION } from './api'
@@ -11,13 +13,6 @@ import { LandingPage } from './LandingPage'
 import { FREE_LIST_LIMIT, activeOwnedListCount, canCreateWishlist } from './proAccess'
 
 type View = { kind: 'home' } | { kind: 'wishlist'; wishlist: Wishlist } | { kind: 'shared'; share: SharedWishlist }
-
-function metricsVisitorID() {
-  const key = 'hushful.metrics.visitor'
-  const existing = localStorage.getItem(key)
-  if (existing) return existing
-  const created = crypto.randomUUID(); localStorage.setItem(key, created); return created
-}
 
 export default function App() {
   const publicPage = legalRoute(window.location.pathname)
@@ -52,8 +47,8 @@ export default function App() {
   }, [toast])
   useEffect(() => {
     const path = guestShareToken ? '/share' : resetToken ? '/reset-password' : verificationToken ? '/verify-email' : token ? '/app' : window.location.pathname === '/' ? '/' : '/login'
-    void api.trackPageView(metricsVisitorID(), path, Boolean(token)).catch(() => undefined)
-  }, [guestShareToken, resetToken, verificationToken, token])
+    if (!token || publicPage || guestShareToken || resetToken || verificationToken) trackUsage(publicPage ? window.location.pathname : path)
+  }, [guestShareToken, resetToken, verificationToken, token, publicPage])
 
   if (publicPage) return <>{themeToggle}<LegalPage page={publicPage} /></>
   if (resetToken) return <>{themeToggle}<ResetPasswordScreen token={resetToken} /></>
@@ -623,7 +618,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   const [view, setView] = useState<View>({ kind: 'home' })
   useEffect(() => {
     const path = view.kind === 'home' ? '/app/home' : view.kind === 'wishlist' ? '/app/wishlist' : '/app/shared-list'
-    void api.trackPageView(metricsVisitorID(), path, true).catch(() => undefined)
+    trackUsage(path)
   }, [view])
   const [wishlists, setWishlists] = useState<Wishlist[]>([])
   const [shared, setShared] = useState(() => shareStorage.list(user.id))
@@ -1416,7 +1411,8 @@ function AccountModal({ token, user, userChanged, onSharedListsPreferenceChanged
     {myFeedback && <section className="feedback-admin"><div><strong>Submitted feedback</strong><small>Follow replies from Hushful support</small></div>{myFeedback.length === 0 ? <p className="hint">You have not submitted feedback yet.</p> : <div className="feedback-responses">{myFeedback.map((entry) => <article key={entry.id}><div><span>{entry.category}</span><small>{entry.status === 'closed' ? 'Closed' : 'Open'} · {entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'Just now'}</small></div><p>{entry.message}</p><button type="button" className="text-button" disabled={feedbackThreadBusy} onClick={() => void openFeedbackThread(entry.id)}>View conversation</button></article>)}</div>}</section>}
     {feedbackThread && !feedbackThreadIsAdmin && <FeedbackThreadPanel thread={feedbackThread} reply={feedbackReplyMessage} setReply={setFeedbackReplyMessage} busy={feedbackThreadBusy} send={() => void replyToFeedback()} close={() => setFeedbackThread(null)} />}
     {adminTotp && <section className="safety-panel"><div className="safety-panel-heading"><ShieldCheck /><div><strong>Admin sign-in verification</strong><small>Protects moderation, metrics, account directory, and feedback access.</small></div></div>{adminTotp.enabled ? <><p className="hint">Enabled. At the next sign-in, enter the 6-digit code from your authenticator app after your password. {adminTotp.recoveryCodesRemaining} recovery code{adminTotp.recoveryCodesRemaining === 1 ? '' : 's'} remain.</p><button type="button" className="secondary danger-text" onClick={() => void disableAdminTOTP()}>Disable admin verification</button></> : adminTotpSetup ? <><p>Enter this setup key into your authenticator app:</p><div className="copy-field"><span>{adminTotpSetup.secret}</span><button type="button" onClick={() => void navigator.clipboard.writeText(adminTotpSetup.secret)}>Copy</button></div><p className="hint">If your app accepts provisioning URIs, use this one: <code>{adminTotpSetup.provisioningURI}</code></p><p className="hint">Save these recovery codes somewhere secure. They are shown only during setup and each one works once.</p><div className="feedback-responses">{adminTotpSetup.recoveryCodes.map((code) => <code key={code}>{code}</code>)}</div><Field label="Authenticator code"><input inputMode="numeric" autoComplete="one-time-code" value={adminTotpCode} onChange={(event) => setAdminTotpCode(event.target.value)} placeholder="6-digit code" /></Field><button type="button" className="primary" disabled={!adminTotpCode.trim()} onClick={() => void confirmAdminTOTP()}>Confirm and enable</button></> : <><p className="hint">Add an authenticator app to require a time-based code after your password. You will receive one-time recovery codes during setup.</p><button type="button" className="secondary" onClick={() => void beginAdminTOTP()}>Set up admin verification</button></>}</section>}
-    {metrics && <section className="metrics-panel"><div><strong>Hushful metrics</strong><small>Last {metrics.days} days · privacy-preserving</small></div><div className="metric-grid"><span><strong>{metrics.totalAccounts}</strong><small>Total accounts</small></span><span><strong>{metrics.newAccounts}</strong><small>New signups</small></span><span><strong>{metrics.visitors}</strong><small>Web visitors</small></span><span><strong>{metrics.views}</strong><small>Page views</small></span></div><div className="metric-paths">{metrics.topPaths.slice(0, 5).map((entry) => <span key={entry.path}><small>{entry.path}</small><strong>{entry.views}</strong></span>)}</div></section>}
+    {metrics && <UsageMetricsPanel token={token} />}
+
     {accounts && <section className="feedback-admin"><div><strong>Account directory</strong><small>{accounts.length} account{accounts.length === 1 ? '' : 's'} · newest first</small></div><p className="hint">If a user paid but Pro did not unlock, find the account below and grant a manual recovery entitlement only after reviewing verified evidence. Google Play does not expose the purchaser email for one-time products, so verify cross-account claims in Play Console using the order ID before granting. This does not transfer or alter the store purchase.</p><input value={accountSearch} onChange={(event) => setAccountSearch(event.target.value)} placeholder="Search name, username, or email" />{accounts.length === 0 ? <p className="hint">No accounts created yet.</p> : <div className="feedback-responses">{accounts.map((account) => { const manualGrant = proGrants?.find((grant) => grant.userID === account.id && grant.active); return <article key={account.id}><div><strong>{account.displayName || 'No display name'}</strong><small>{account.createdAt ? new Date(account.createdAt).toLocaleString() : 'Unknown signup date'} · {account.emailVerified === false ? 'unverified — cannot sign in' : 'verified'}{account.isPro ? ' · Pro active' : ''}</small></div><small>{account.email}{account.username ? ` · @${account.username}` : ''}</small>{account.suspicious && <p className="suspicious-account"><CircleAlert size={16} />Generated-looking account — review before taking action</p>}{manualGrant && <small>Manual grant: {manualGrant.reason}</small>}<div className="modal-actions spread"><button type="button" className="text-button" disabled={accountActivityBusy === account.id} onClick={() => void viewAccountActivity(account)}>{accountActivityBusy === account.id ? 'Loading…' : 'View activity'}</button>{manualGrant ? <button type="button" className="text-button danger-text" disabled={proGrantBusy === account.id} onClick={() => void revokeProAccess(manualGrant)}>{proGrantBusy === account.id ? 'Revoking…' : 'Revoke manual Pro grant'}</button> : account.emailVerified === false ? <small>Pro access is unavailable until email verification.</small> : <button type="button" className="secondary" disabled={proGrantBusy === account.id} onClick={() => void grantProAccess(account)}>{proGrantBusy === account.id ? 'Granting…' : 'Grant Pro access'}</button>}</div></article> })}</div>}</section>}
     {accountActivity && <AccountActivityModal account={accountActivity.account} activity={accountActivity.activity} close={() => setAccountActivity(null)} />}
     {feedback && <section className="feedback-admin">

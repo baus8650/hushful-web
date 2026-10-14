@@ -423,3 +423,10 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .sale-price { color: #167346; }
 .item-price small, .shared-notifications small { display: block; color: var(--muted); }
 .shared-notifications { margin-top: 12px; }
+
+.usage-privacy-button { position:fixed; bottom:12px; left:12px; z-index:90; font-size:12px; border-radius:20px; padding:8px 12px; background:var(--paper); color:var(--ink); border:1px solid var(--line); }
+.usage-consent { position:fixed; bottom:56px; left:12px; width:min(460px, calc(100vw - 24px)); z-index:100; padding:20px; border:1px solid var(--line); border-radius:18px; background:var(--cream); color:var(--ink); box-shadow:0 8px 30px #0003; max-height:75vh; overflow:auto; }
+.usage-consent p { font-size:14px; line-height:1.5; }
+.usage-bars { display:flex; align-items:flex-end; gap:3px; height:160px; border-bottom:1px solid var(--line); }
+.usage-bars span { flex:1; background:var(--purple, #80738a); min-width:1px; }
+.usage-table { overflow:auto; } .usage-table th,.usage-table td { text-align:left; padding:8px; white-space:nowrap; font-size:12px; }

@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { UsagePrivacy } from './UsagePrivacy'
 import './styles.css'
 
 // Token-bearing URLs and shared wishlists must not be indexed.
@@ -11,4 +12,4 @@ if (new URLSearchParams(window.location.search).has('resetToken') || new URLSear
   document.head.appendChild(robots)
 }
 
-createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>)
+createRoot(document.getElementById('root')!).render(<StrictMode><App /><UsagePrivacy /></StrictMode>)
