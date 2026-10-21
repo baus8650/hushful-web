@@ -82,7 +82,7 @@ export const api = {
   removeAvatar: (token: string) => avatarRequest(token, 'DELETE'),
   uploadItemImage: (token: string, wishlistId: string, itemId: string, file: File) => itemImageRequest(token, wishlistId, itemId, 'PUT', file),
   removeItemImage: (token: string, wishlistId: string, itemId: string) => itemImageRequest(token, wishlistId, itemId, 'DELETE'),
-  trackUsage: (body: Record<string, unknown>) => request<void>('/v1/metrics/usage-events', { method: 'POST', body: JSON.stringify(body), credentials: 'omit', keepalive: true, referrerPolicy: 'no-referrer' }),
+  trackUsage: (body: Record<string, unknown>, token?: string | null) => request<void>('/v1/metrics/usage-events', { method: 'POST', body: JSON.stringify(body), headers: token ? auth(token) : {}, credentials: 'omit', keepalive: true, referrerPolicy: 'no-referrer' }),
   usageMetrics: (token: string, days = 30) => request<UsageDashboard>(`/v1/metrics/usage-summary?days=${days}`, { headers: auth(token) }),
   trackPageView: (visitorID: string, path: string, signedIn: boolean) => request<void>('/v1/metrics/events', { method: 'POST', body: JSON.stringify({ visitorID, path, signedIn }) }),
   metricsSummary: (token: string, days = 30) => request<{ days: number; views: number; visitors: number; signedInViews: number; totalAccounts: number; newAccounts: number; daily: Array<{ date: string; views: number; visitors: number; signups: number }>; topPaths: Array<{ path: string; views: number }> }>(`/v1/metrics/summary?days=${days}`, { headers: auth(token) }),
