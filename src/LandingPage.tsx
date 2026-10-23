@@ -38,6 +38,7 @@ export function LandingPage() {
           <div className="landing-actions"><SignupLink /><a className="landing-text-link" href="#how-it-works">See how it works <ArrowRight aria-hidden="true" /></a></div>
           <p className="landing-reassurance">3 free lists · Unlimited wishes · No credit card needed</p>
           <a className="landing-store-link" href={APP_STORE_URL} target="_blank" rel="noreferrer">Prefer the app? Get Hushful for iPhone & iPad <ExternalLink aria-hidden="true" /></a>
+          <p className="landing-reassurance">Android app coming soon.</p>
         </div>
         <figure className="landing-product">
           <div className="landing-phone"><img src="/images/hushful-wishlist.jpg" width="1320" height="2868" fetchPriority="high" alt="Hushful on iPhone showing a birthday wishlist with gift links, prices, and personal notes." /></div>
