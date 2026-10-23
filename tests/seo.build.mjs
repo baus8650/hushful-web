@@ -14,8 +14,9 @@ test('public pages contain crawlable content and their own canonical URLs', asyn
     titles.add(title)
     assert.ok(html.includes(`rel="canonical" href="${origin}/${route}"`))
     assert.match(html, /name="robots" content="index, follow"/)
-    assert.match(html, /<h1[^>]*>[^<]+<\/h1>/)
-    assert.match(html, /<div id="root"><div/)
+    const heading = html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/)?.[1].replace(/<[^>]*>/g, '').trim()
+    assert.ok(heading, `Missing readable heading for ${route}`)
+    assert.match(html, /<div id="root">(?:<link\b[^>]*>)*<div/)
   }
   const home = await readFile('dist/index.html', 'utf8')
   assert.match(home, /without downloading Hushful or creating an account/)
