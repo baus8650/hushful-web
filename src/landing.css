@@ -24,7 +24,7 @@
 .landing-page .landing-reassurance { font-size:.76rem; margin:15px 0; }
 .landing-store-link { display:inline-flex; align-items:center; gap:7px; font-size:.78rem; color:var(--muted); text-underline-offset:4px; margin-top:16px; }
 .landing-store-link svg { width:14px; flex-shrink:0; }
-.landing-product { position:relative; background:var(--landing-lavender); border-radius:48% 48% 24px 24px; padding:26px 28px 22px; margin:0; display:flex; align-items:center; flex-direction:column; }
+.landing-product { position:relative; background:var(--landing-lavender); border-radius:48% 48% 24px 24px; padding:58px 28px 22px; margin:0; display:flex; align-items:center; flex-direction:column; }
 .landing-phone { width:min(100%,228px); border:6px solid #29262d; border-radius:34px; overflow:hidden; background:#f8f6f1; box-shadow:0 16px 32px rgba(41,34,48,.15); }
 .landing-phone img { display:block; width:100%; height:auto; }
 .landing-product figcaption { display:flex; align-items:center; flex-direction:column; gap:5px; margin-top:18px; color:var(--text); font-size:.84rem; }
