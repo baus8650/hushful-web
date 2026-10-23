@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { APP_STORE_URL } from './appLinks'
-import { chooseUsage, privacySignal, trackUsage, usagePreference, usageExcluded } from './usageMetrics'
+import { chooseUsage, privacySignal, trackUsage, usageExcluded } from './usageMetrics'
 export function UsagePrivacy() {
   const [excluded, setExcluded] = useState(usageExcluded)
-  const [open, setOpen] = useState(() => usagePreference() === null && !privacySignal() && !usageExcluded())
+  const [open, setOpen] = useState(false)
   useEffect(() => {
     const sync = () => setExcluded(usageExcluded())
     window.addEventListener('hushful-analytics-exclusion', sync)
@@ -15,5 +15,5 @@ export function UsagePrivacy() {
     document.addEventListener('click', click)
     return () => document.removeEventListener('click', click)
   }, [])
-  return <><button type="button" className="usage-privacy-button" onClick={() => setOpen(true)}>Usage privacy</button>{open && <section className="usage-consent" aria-label="Optional usage analytics"><strong>Help improve Hushful</strong><p>Optionally share device and browser details, language, time zone, referral site, and approximate country, region, and city. Only Hushful administrators see these details. Wishlist contents, account identifiers, precise location, and raw IP addresses are excluded. Anonymous traffic counts are recorded without these details.</p>{privacySignal() && <p>Your browser’s privacy preference keeps detailed analytics off.</p>}<a href="/privacy">Privacy policy</a><div className="modal-actions"><button type="button" onClick={() => { chooseUsage(false); setOpen(false) }}>No thanks</button>{!privacySignal() && <button type="button" className="primary" disabled={excluded} onClick={() => { chooseUsage(true); setOpen(false) }}>Share usage analytics</button>}</div></section>}</>
+  return <><button type="button" className="usage-privacy-button" aria-expanded={open} aria-controls="usage-consent" onClick={() => setOpen(!open)}>Usage privacy</button>{open && <section id="usage-consent" className="usage-consent" aria-label="Usage analytics settings"><strong>Usage analytics</strong><p>Website analytics are enabled by default. You can turn them off below. They include device and browser details, language, time zone, referral site, and approximate country, region, and city. Only Hushful administrators see these details. Wishlist contents, account identifiers, precise location, and raw IP addresses are excluded. Anonymous traffic counts are recorded without these details.</p>{privacySignal() && <p>Your browser’s privacy preference keeps detailed analytics off.</p>}<a href="/privacy">Privacy policy</a><div className="modal-actions"><button type="button" onClick={() => { chooseUsage(false); setOpen(false) }}>Turn off detailed analytics</button>{!privacySignal() && <button type="button" className="primary" disabled={excluded} onClick={() => { chooseUsage(true); setOpen(false) }}>Enable detailed analytics</button>}</div></section>}</>
 }

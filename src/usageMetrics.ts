@@ -28,7 +28,8 @@ export function trackUsage(path: string, kind: 'page_view' | 'app_store_click' =
   // Suppress React StrictMode duplicate effects, without suppressing later navigation.
   if (!updateConsent && now - (lastEvents.get(eventKey) ?? 0) < 500) return
   lastEvents.set(eventKey, now)
-  const consented = !privacySignal() && usagePreference() === 'yes'
+  // New visitors have analytics enabled; explicit opt-outs and browser signals win.
+  const consented = !privacySignal() && usagePreference() !== 'no'
   let details = {}
   if (consented) {
     try {

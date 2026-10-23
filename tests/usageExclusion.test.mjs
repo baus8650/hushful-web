@@ -27,7 +27,8 @@ test('browser exclusion stops all events and survives a collector reload', async
     collector.trackUsage('/share/private-token')
     assert.equal(sent.length,1)
     assert.equal(JSON.parse(sent[0].body).path,'/share')
-    assert.equal(JSON.parse(sent[0].body).consented,false)
+    assert.equal(JSON.parse(sent[0].body).consented,true)
+    assert.ok(JSON.parse(sent[0].body).sessionID)
     session.set('hushful.accessToken','test-admin-session')
     collector.trackUsage('/app/home')
     assert.equal(sent[1].headers.Authorization,'Bearer test-admin-session')
@@ -35,6 +36,21 @@ test('browser exclusion stops all events and survives a collector reload', async
     collector.setUsageExcluded(true)
     collector.trackUsage('/app/shared-list')
     assert.equal(sent.length,2)
+    collector.setUsageExcluded(false)
+    collector.chooseUsage(false)
+    collector.trackUsage('/terms')
+    assert.equal(JSON.parse(sent.at(-1).body).consented,false)
+    assert.equal(JSON.parse(sent.at(-1).body).sessionID,undefined)
+    collector.chooseUsage(true)
+    navigator.doNotTrack = '1'
+    collector.trackUsage('/support')
+    assert.equal(JSON.parse(sent.at(-1).body).consented,false)
+    assert.equal(JSON.parse(sent.at(-1).body).browser,undefined)
+    navigator.doNotTrack = '0'
+    navigator.globalPrivacyControl = true
+    collector.trackUsage('/press')
+    assert.equal(JSON.parse(sent.at(-1).body).consented,false)
+    assert.equal(JSON.parse(sent.at(-1).body).sessionID,undefined)
   } finally {
     await server.close()
     for (const [key,descriptor] of originals) { if (descriptor) Object.defineProperty(globalThis,key,descriptor); else delete globalThis[key] }
