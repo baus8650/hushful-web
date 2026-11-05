@@ -430,3 +430,5 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .usage-bars { display:flex; align-items:flex-end; gap:3px; height:160px; border-bottom:1px solid var(--line); }
 .usage-bars span { flex:1; background:var(--purple, #80738a); min-width:1px; }
 .usage-table { overflow:auto; } .usage-table th,.usage-table td { text-align:left; padding:8px; white-space:nowrap; font-size:12px; }
+
+.audience-choice.is-inherited { opacity: .55; cursor: default; }

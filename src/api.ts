@@ -102,6 +102,7 @@ export const api = {
   adminProGrants: (token: string) => request<AdminProGrant[]>('/v1/admin/pro/grants', { headers: auth(token) }),
   grantProAccess: (token: string, userID: string, reason: string) => request<AdminProGrant>('/v1/admin/pro/grants', { method: 'POST', headers: auth(token), body: JSON.stringify({ userID, reason }) }),
   revokeProAccess: (token: string, grantID: string) => request<AdminProGrant>(`/v1/admin/pro/grants/${grantID}/revoke`, { method: 'POST', headers: auth(token) }),
+  adminReport: (token: string, reportID: string) => request<UserReport>(`/v1/admin/reports/${reportID}`, { headers: auth(token) }),
   adminReports: (token: string) => request<UserReport[]>('/v1/admin/reports', { headers: auth(token) }),
   adminAudit: (token: string) => request<Array<{ id: string; adminEmail?: string; action: string; targetType?: string; targetID?: string; metadata?: string; createdAt?: string }>>('/v1/admin/audit', { headers: auth(token) }),
   adminTOTPStatus: (token: string) => request<{ enabled: boolean; recoveryCodesRemaining: number }>('/v1/admin/security/totp/status', { headers: auth(token) }),
@@ -168,9 +169,9 @@ export const api = {
   createWishlist: (token: string, title: string, visibility: 'public' | 'private') => request<Wishlist>('/v1/wishlists', { method: 'POST', headers: auth(token), body: JSON.stringify({ title, visibility }) }),
   renameWishlist: (token: string, id: string, title: string) => request<Wishlist>(`/v1/wishlists/${id}`, { method: 'PATCH', headers: auth(token), body: JSON.stringify({ title }) }),
   items: (token: string, id: string) => request<WishlistItem[]>(`/v1/wishlists/${id}/items`, { headers: auth(token) }),
-  createItem: (token: string, id: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[]; itemType?: 'wish' | 'cash_fund'; contributionGoal?: number }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
+  createItem: (token: string, id: string, item: { currencyCode?: string; title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[]; itemType?: 'wish' | 'cash_fund'; contributionGoal?: number }) => request<WishlistItem>(`/v1/wishlists/${id}/items`, { method: 'POST', headers: auth(token), body: JSON.stringify(item) }),
   itemLinks: (token: string, wishlistId: string, itemId: string) => request<{ wishlistIDs: string[] }>(`/v1/wishlists/${wishlistId}/items/${itemId}/links`, { headers: auth(token) }),
-  async updateItem(token: string, wishlistId: string, itemId: string, item: { title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[]; itemType?: 'wish' | 'cash_fund'; contributionGoal?: number }) {
+  async updateItem(token: string, wishlistId: string, itemId: string, item: { currencyCode?: string; title: string; url?: string; price?: number; ownerNote?: string; quantity: number; linkedWishlistIDs?: string[]; itemType?: 'wish' | 'cash_fund'; contributionGoal?: number }) {
     const path = `/v1/wishlists/${wishlistId}/items/${itemId}`
     const options = { headers: auth(token), body: JSON.stringify(item) }
     try {

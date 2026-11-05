@@ -6,9 +6,9 @@ export interface Friendship { id: string; user: SocialUser; direction: 'incoming
 export interface FriendGroup { id: string; name: string; members: SocialUser[] }
 export interface RecurringOccasion { id?: string; name: string; eventMonth: number; eventDay: number; reminderMonth: number; reminderDay: number; icon: string; colorHex: string; lastCreatedYear?: number }
 export interface WishlistAudience { userIDs: string[]; groupIDs: string[] }
-export interface ActivityItem { id: string; kind: string; title: string; message: string; actorID?: string; wishlistID?: string; readAt?: string; createdAt?: string }
+export interface ActivityItem { reportID?: string; id: string; kind: string; title: string; message: string; actorID?: string; wishlistID?: string; readAt?: string; createdAt?: string }
 export interface ActivityUnreadCount { count: number }
-export interface Wishlist {
+export interface Wishlist { currencyCode?: string;
   id: string; title: string; visibility: 'private' | 'public'; collaborationMode?: 'our_wishlist' | 'gift_planning';
   isPrimaryOwner?: boolean; isCollaborative?: boolean; occasionDate?: string; reminderEnabled?: boolean;
   icon?: string; colorTheme?: string; isArchived?: boolean; description?: string; customColorHex?: string; reminderDate?: string;
@@ -17,7 +17,7 @@ export interface Wishlist {
 }
 export interface WishlistCollaborator { id: string; displayName?: string; username?: string; isPrimaryOwner: boolean }
 export interface WishlistCollaboration { mode: 'our_wishlist' | 'gift_planning'; collaborators: WishlistCollaborator[] }
-export interface WishlistSettings {
+export interface WishlistSettings { currencyCode?: string;
   visibility: 'private' | 'public'; showPurchaserNames: boolean; allowMultiplePurchases: boolean;
   allowNotes: boolean; autoLockOnPurchase: boolean; occasionDate?: string; reminderEnabled?: boolean;
   icon?: string; colorTheme?: string; isArchived?: boolean; description?: string; customColorHex?: string; reminderDate?: string;
@@ -29,22 +29,22 @@ export interface ProfileDetails { matureProfileEnabled?: boolean; birthdayYear?:
 export interface BirthdayAlert { enabled: boolean; reminderDaysBefore: number }
 export interface FriendProfile { user: SocialUser; publicWishlists: ProfileWishlist[]; jointWishlists?: ProfileWishlist[]; sharedWishlists: ProfileWishlist[]; birthdayMonth?: number; birthdayDay?: number; attributes?: ProfileAttribute[]; birthdayAlertEnabled?: boolean; birthdayAlertDaysBefore?: number }
 export interface Pins { wishlistIDs: string[]; userIDs: string[]; groupIDs: string[] }
-export interface WishlistItem {
+export interface WishlistItem { currencyCode?: string;
   salePrice?: number; saleDiscountPercent?: number; saleEndsAt?: string;
   id: string; title: string; url?: string; price?: number; ownerNote?: string; quantity?: number;
   itemType?: 'wish' | 'cash_fund'; contributionGoal?: number;
   createdAt: string; updatedAt: string; wishlist: { id: string }
 }
-export interface SharedWishlist { shareToken: string; title: string; sharedByName?: string; accountShareID?: string; wishlistID?: string; matureContentEnabled?: boolean }
+export interface SharedWishlist { currencyCode?: string; shareToken: string; title: string; sharedByName?: string; accountShareID?: string; wishlistID?: string; matureContentEnabled?: boolean }
 export interface GuestShareLink { id: string; createdAt?: string; expiresAt?: string }
-export interface AccountSharedWishlist { notificationsEnabled?: boolean; id: string; wishlistID: string; title: string; sharedByName: string; matureContentEnabled?: boolean }
+export interface AccountSharedWishlist { currencyCode?: string; notificationsEnabled?: boolean; id: string; wishlistID: string; title: string; sharedByName: string; matureContentEnabled?: boolean }
 export interface SharedNote { stateID?: string; authorDisplayName?: string; updatedAt?: string; note: string; isMine?: boolean }
 export interface WishlistDiscussionComment { id: string; message: string; authorDisplayName?: string; createdAt?: string; isMine: boolean }
 export interface UserFeedback { id: string; category: string; message: string; platform: string; userID: string; userEmail?: string; userDisplayName?: string; shareName?: boolean; purchaseEvidence?: string; purchaseEvidenceDetails?: string; purchaseProvider?: string; purchaseOrderID?: string; purchaseAt?: string; status?: 'open' | 'closed'; archived?: boolean; createdAt?: string }
 export interface FeedbackReply { id: string; feedbackID: string; authorRole: 'admin' | 'user'; authorDisplayName?: string; message: string; createdAt?: string }
 export interface FeedbackThread { feedback: UserFeedback; replies: FeedbackReply[] }
 export interface AdminAccount { id: string; displayName?: string; email: string; username?: string; emailVerified?: boolean; onboardingVersion?: number; isPro?: boolean; suspicious?: boolean; createdAt?: string }
-export interface AdminAccountWishlist { id: string; title: string; archived: boolean; createdAt?: string }
+export interface AdminAccountWishlist { id: string; title: string; itemCount?: number; archived: boolean; createdAt?: string }
 export interface AdminAccountFriendRequest { id: string; otherUserEmail: string; otherUserDisplayName?: string; otherUsername?: string; status: string; createdAt?: string; updatedAt?: string }
 export interface AdminAccountActivity { userID: string; email: string; emailVerified: boolean; createdWishlists: AdminAccountWishlist[]; sentFriendRequests: AdminAccountFriendRequest[]; receivedFriendRequests: AdminAccountFriendRequest[] }
 export interface AdminProGrant { id: string; userID: string; userEmail: string; userDisplayName?: string; reason: string; active: boolean; grantedAt?: string; revokedAt?: string; grantedByEmail?: string }
@@ -55,6 +55,6 @@ export interface SharedItemRow {
 }
 export interface ShareViewResponse {
   viewerToken: string
-  wishlist: { id: string; title: string; sharedByName: string }
+  wishlist: { id: string; title: string; sharedByName: string; currencyCode?: string }
   requiresAdultConfirmation?: boolean
 }
