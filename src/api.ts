@@ -59,15 +59,15 @@ async function protectedImage(path: string, accessToken?: string, viewerToken?: 
 }
 
 export type AnnouncementCard = { id: string; title: string; message: string; createdAt?: string }
-export type AnnouncementInput = { id: string; title: string; message: string }
-export type Announcement = AnnouncementInput & { recipientCount: number; pendingCount: number; createdAt?: string }
+export type AnnouncementInput = { id: string; title: string; message: string; userIDs?: string[] }
+export type Announcement = AnnouncementInput & { recipientCount: number; pendingCount: number; audience?: string; createdAt?: string }
 export const api = {
   announcementCards: (token: string) => request<AnnouncementCard[]>('/v1/announcements', { headers: auth(token), cache: 'no-store' }),
   dismissAnnouncement: (token: string, id: string) => request<void>(`/v1/announcements/${id}/dismiss`, { method: 'POST', headers: auth(token) }),
   announcementPreference: (token: string) => request<{ enabled: boolean }>('/v1/me/announcement-preference', { headers: auth(token), cache: 'no-store' }),
   updateAnnouncementPreference: (token: string, enabled: boolean) => request<{ enabled: boolean }>('/v1/me/announcement-preference', { method: 'PUT', headers: auth(token), body: JSON.stringify({ enabled }) }),
   announcements: (token: string) => request<Announcement[]>('/v1/admin/announcements', { headers: auth(token), cache: 'no-store' }),
-  announcementAudience: (token: string) => request<{ users: number; pushUsers: number }>('/v1/admin/announcements/audience', { headers: auth(token), cache: 'no-store' }),
+  announcementAudience: (token: string, userIDs?: string[]) => request<{ users: number; pushUsers: number }>('/v1/admin/announcements/audience', { method: 'POST', headers: auth(token), body: JSON.stringify({ userIDs }), cache: 'no-store' }),
   sendAnnouncement: (token: string, body: AnnouncementInput) => request<Announcement>('/v1/admin/announcements', { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
   testAnnouncement: (token: string, body: AnnouncementInput) => request<void>('/v1/admin/announcements/test', { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
   swaps: (token: string) => request<HushfulSwap[]>('/v1/swaps', { headers: auth(token) }),

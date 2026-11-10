@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import type { Announcement, AnnouncementInput, AnnouncementCard } from './api'
+import type { AdminAccount } from './types'
 
 type Props = { token: string }
 export function AnnouncementPreference({ token }: Props) {
@@ -27,6 +28,10 @@ export function AnnouncementPreference({ token }: Props) {
 }
 
 export function AdminAnnouncements({ token }: Props) {
+  const [selectedOnly, setSelectedOnly] = useState(false)
+  const [selected, setSelected] = useState<AdminAccount[]>([])
+  const [accounts, setAccounts] = useState<AdminAccount[]>([])
+  const [query, setQuery] = useState('')
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [id, setId] = useState(() => crypto.randomUUID())
@@ -36,13 +41,13 @@ export function AdminAnnouncements({ token }: Props) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
-  const input = attempted ?? { id, title: title.trim(), message: message.trim() }
-  const valid = input.title.length > 0 && input.title.length <= 80 && input.message.length > 0 && input.message.length <= 500
+  const input = attempted ?? { id, title: title.trim(), message: message.trim(), ...(selectedOnly ? { userIDs: selected.map(account => account.id) } : {}) }
+  const valid = input.title.length > 0 && input.title.length <= 80 && input.message.length > 0 && input.message.length <= 500 && (input.userIDs === undefined || input.userIDs.length > 0)
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : 'Request failed.')
   function reset() { setAttempted(null); setTitle(''); setMessage(''); setId(crypto.randomUUID()) }
   async function load() {
-    const [people, entries] = await Promise.all([api.announcementAudience(token), api.announcements(token)])
-    setAudience(people); setHistory(entries)
+    const entries = await api.announcements(token)
+    setHistory(entries)
     if (attempted && entries.some(entry => entry.id === attempted.id)) reset()
   }
   useEffect(() => {
@@ -50,13 +55,30 @@ export function AdminAnnouncements({ token }: Props) {
     Promise.all([api.announcementAudience(token), api.announcements(token)]).then(([people, entries]) => { if (active) { setAudience(people); setHistory(entries) } }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Unable to load announcements.') })
     return () => { active = false }
   }, [token])
+  const audienceKey = JSON.stringify(attempted?.userIDs ?? (selectedOnly ? selected.map(account => account.id) : null))
+  useEffect(() => {
+    let active = true
+    setAudience(null)
+    const ids = JSON.parse(audienceKey) as string[] | null
+    if (ids?.length === 0) return
+    api.announcementAudience(token, ids ?? undefined).then(value => { if (active) setAudience(value) }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Unable to load audience.') })
+    return () => { active = false }
+  }, [token, audienceKey])
+  useEffect(() => {
+    if (!selectedOnly) return
+    let active = true
+    const timer = window.setTimeout(() => {
+      void api.adminAccounts(token, query).then(value => { if (active) setAccounts(value) }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Unable to load accounts.') })
+    }, 250)
+    return () => { active = false; window.clearTimeout(timer) }
+  }, [token, query, selectedOnly])
   async function send(test: boolean) {
     if (busy || !valid) return
     setBusy(true); setError('')
     try {
-      if (test) { await api.testAnnouncement(token, input); setStatus('Test push requested for your devices.') }
+      if (test) { await api.testAnnouncement(token, input); setStatus('Test added to your My Lists and Activity. Push requested for your devices.') }
       else {
-        const people = await api.announcementAudience(token); setAudience(people)
+        const people = await api.announcementAudience(token, input.userIDs); setAudience(people)
         if (!window.confirm(`Send “${input.title}” to ${people.users} accounts in My Lists and Activity and up to ${people.pushUsers} push subscribers? This cannot be recalled.`)) return
         setAttempted(input)
         const result = await api.sendAnnouncement(token, input)
@@ -69,6 +91,11 @@ export function AdminAnnouncements({ token }: Props) {
     <label>Title<input value={title} maxLength={80} disabled={busy || attempted !== null} onChange={e => setTitle(e.target.value)} /></label>
     <label>Message<textarea value={message} rows={4} maxLength={500} disabled={busy || attempted !== null} onChange={e => setMessage(e.target.value)} /></label>
     <small>{title.length}/80 title · {message.length}/500 message</small>
+    <label>Send to<select value={selectedOnly ? 'selected' : 'everyone'} disabled={busy || attempted !== null} onChange={e => setSelectedOnly(e.target.value === 'selected')}><option value="everyone">Everyone</option><option value="selected">Selected accounts</option></select></label>
+    {selectedOnly && <fieldset disabled={busy || attempted !== null}><legend>Choose accounts ({selected.length} selected)</legend><label>Search accounts<input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Name, email, or username" /></label>
+      {selected.map(account => <label className="checkbox" key={account.id}><input type="checkbox" checked onChange={() => setSelected(items => items.filter(item => item.id !== account.id))} />{account.displayName || account.email} · {account.email}</label>)}
+      <div style={{ maxHeight: 260, overflowY: 'auto' }}>{accounts.filter(account => !selected.some(item => item.id === account.id)).map(account => <label className="checkbox" key={account.id}><input type="checkbox" checked={false} disabled={account.emailVerified === false || selected.length >= 1000} onChange={() => setSelected(items => [...items, account])} />{account.displayName || account.email} · {account.email}{account.emailVerified === false ? ' (unverified)' : ''}</label>)}</div>
+    </fieldset>}
     {valid && <article aria-label="Notification preview"><small>Hushful · Notification preview</small><strong>{input.title}</strong><p>{input.message}</p></article>}
     {audience && <p className="hint">{audience.users} accounts · {audience.pushUsers} eligible for push. Counts may change before delivery.</p>}
     <div className="modal-actions"><button type="button" className="secondary" disabled={!valid || busy} onClick={() => void send(true)}>Send test to my devices</button><button type="button" className="primary" disabled={!valid || busy || !audience} onClick={() => void send(false)}>{busy ? 'Working…' : attempted ? 'Retry this announcement' : 'Send announcement'}</button></div>
@@ -76,7 +103,7 @@ export function AdminAnnouncements({ token }: Props) {
     {status && <p role="status">{status}</p>}{error && <p className="form-error" role="alert">{error}</p>}
     <div className="modal-actions spread"><strong>Send history</strong><button type="button" className="text-button" disabled={busy} onClick={() => void load().catch(fail)}>Refresh history</button></div>
     <small>Processed counts indicate attempts, not confirmed push receipt.</small>
-    <div className="feedback-responses">{history.map(item => <article key={item.id}><strong>{item.title}</strong><p>{item.message}</p><small>{item.recipientCount} recipients · {item.pendingCount} pending{item.createdAt ? ` · ${new Date(item.createdAt).toLocaleString()}` : ''}</small></article>)}</div>
+    <div className="feedback-responses">{history.map(item => <article key={item.id}><strong>{item.title}</strong><p>{item.message}</p><small>{item.audience === 'selected' ? 'Selected accounts' : 'Everyone'} · {item.recipientCount} recipients · {item.pendingCount} pending{item.createdAt ? ` · ${new Date(item.createdAt).toLocaleString()}` : ''}</small></article>)}</div>
   </section>
 }
 
