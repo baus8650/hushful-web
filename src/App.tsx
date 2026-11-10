@@ -69,7 +69,7 @@ export default function App() {
   if (!token || !user) return <>{themeToggle}<AuthScreen analytics={metricsPage} swapInvitation={Boolean(pendingSwapInvite)} onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} /></>
   if (metricsPage) return <>{themeToggle}<MetricsPage token={token} logout={logout} /></>
   if (onboardingActive) return <>{themeToggle}<OnboardingFlow token={token} user={user} userChanged={setUser} finish={async () => { try { setUser(await api.updateProfile(token, { onboardingVersion: 1 })); setOnboardingActive(false) } catch (error) { onError(error) } }} logout={logout} /></>
-  if (pendingSwapInvite) return <>{themeToggle}<SwapInvitationPage invite={pendingSwapInvite} token={token} /></>
+  if (pendingSwapInvite) return <>{themeToggle}<SwapInvitationPage invite={pendingSwapInvite} token={token} renderWishlist={(wishlist, onChanged) => <SwapWishlistEditor token={token} wishlist={{ ...wishlist, proAccess: user.isPro === true }} onChanged={onChanged} />} /></>
   return <>
     {themeToggle}
     <Dashboard token={token} user={user} setUser={setUser} logout={logout} onError={onError} notify={notify} />
@@ -800,7 +800,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
       {busy ? <FullPageLoader embedded /> : view.kind === 'home' ? <Home token={token} user={user} wishlists={wishlists} shared={sharedForDisplay.filter((share) => Boolean(share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)))} openWishlist={(w) => select({ kind: 'wishlist', wishlist: w })} openShared={(s) => select({ kind: 'shared', share: s })} newWishlist={openCreate} openShare={() => setShareOpen(true)} /> : view.kind === 'wishlist' ? <WishlistDetail token={token} wishlist={{ ...view.wishlist, proAccess: user.isPro === true }} canUseMatureContent={user.ageBand === 'adult'} onDeleted={() => { setWishlists((all) => all.filter((list) => list.id !== view.wishlist.id)); select({ kind: 'home' }); notify('Wishlist deleted') }} allWishlists={wishlists} pinned={pins.wishlistIDs.includes(view.wishlist.id)} togglePin={() => void toggleWishlistPin(view.wishlist.id)} onRenamed={(updated) => { setWishlists((all) => all.map((item) => item.id === updated.id ? updated : item)); setView({ kind: 'wishlist', wishlist: updated }) }} onError={onError} notify={notify} /> : <SharedDetail token={token} accountId={user.id} defaultNoteName={user.displayName || user.email.split('@')[0]} share={view.share} pinned={Boolean(view.share.wishlistID && pins.wishlistIDs.includes(view.share.wishlistID))} togglePin={() => view.share.wishlistID && void toggleWishlistPin(view.share.wishlistID)} onError={onError} notify={notify} onRemove={() => void removeShare(view.share)} onAdd={() => addShareToAccount(view.share)} />}
     </main>
     {proOpen && <Modal close={() => setProOpen(false)}><ModalHeader eyebrow="Your plan" title={user.isPro ? "Hushful Pro is active" : "Make room for more wishes"} close={() => setProOpen(false)} /><ProPlan isPro={user.isPro === true} activeLists={activeOwnedListCount(wishlists)} /><button className="secondary" disabled={refreshingPro} onClick={() => void refreshPro()}><RefreshCw /> {refreshingPro ? 'Checking…' : 'Refresh Pro status'}</button></Modal>}
-    {createSwapOpen && <SwapCreationDialog token={token} wishlists={wishlists} close={() => { setCreateSwapOpen(false); window.dispatchEvent(new Event('hushful:swaps-changed')) }} />}
+    {createSwapOpen && <SwapCreationDialog token={token} wishlists={wishlists} renderWishlist={(wishlist, onChanged) => <SwapWishlistEditor token={token} wishlist={{ ...wishlist, proAccess: user.isPro === true }} onChanged={onChanged} />} close={() => { setCreateSwapOpen(false); window.dispatchEvent(new Event('hushful:swaps-changed')) }} />}
     {createOpen && <CreateWishlistModal close={() => setCreateOpen(false)} create={createWishlist} />}
     {shareOpen && <OpenShareModal accessToken={token} accountId={user.id} initialToken={window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]} close={() => setShareOpen(false)} save={saveShare} onError={onError} />}
     {sharedLibraryOpen && <Modal close={() => setSharedLibraryOpen(false)} size="modal-wide"><ModalHeader eyebrow="Your complete library" title="All shared lists" close={() => setSharedLibraryOpen(false)} /><div className="social-stack">{sharedForDisplay.length ? [...sharedForDisplay].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })).map((share) => <button className="profile-list-row" key={share.accountShareID || share.shareToken} onClick={() => { setSharedLibraryOpen(false); select({ kind: 'shared', share }) }}><Gift /><span><strong>{share.title}</strong><small>Shared by {share.sharedByName || 'Someone'}</small></span><ChevronRight /></button>) : <p className="hint">No lists have been shared with you yet.</p>}<div className="modal-actions"><button className="secondary" onClick={() => { setSharedLibraryOpen(false); setShareOpen(true) }}><Link2 /> Open a link</button></div></div></Modal>}
@@ -819,7 +819,7 @@ function Home({ token, user, wishlists, shared, openWishlist, openShared, newWis
   const archived = wishlists.filter((wishlist) => wishlist.isArchived)
   return <div className="page home-page">
     <header className="page-heading"><div><p className="eyebrow">Your quiet corner</p><h1>Good {greeting()}, {firstName(user.displayName)}.</h1><p>Gather every wish. Keep every gift a surprise.</p></div><button className="primary" onClick={newWishlist}><Plus /> New wishlist</button></header>
-    <SwapBanner token={token} wishlists={wishlists} />
+    <SwapBanner token={token} wishlists={wishlists} renderWishlist={(wishlist, onChanged) => <SwapWishlistEditor token={token} wishlist={{ ...wishlist, proAccess: user.isPro === true }} onChanged={onChanged} />} />
     {wishlists.length === 0 && shared.length === 0 ? <EmptyState icon={<Gift />} title="A little space for things you love" text="Create your first wishlist, then share it privately with friends and family." action={<button className="primary" onClick={newWishlist}><Plus /> Create a wishlist</button>} /> : <>
       <section><SectionTitle title="My wishlists" subtitle={`${owned.length} ${owned.length === 1 ? 'collection' : 'collections'}`} action={<button className="text-button" onClick={newWishlist}>Add new <Plus /></button>} />
         <div className="card-grid">{owned.map((wishlist, index) => <button className="wishlist-card" key={wishlist.id} onClick={() => openWishlist({ ...wishlist, proAccess: user.isPro === true })}><div className={`card-art art-${index % 4}`}><Gift /></div><div><span className="card-kicker">Wishlist</span><h3>{wishlist.title}</h3><p>{wishlist.visibility === 'public' ? 'Public' : 'Private'}</p></div><ChevronRight /></button>)}</div>
@@ -891,6 +891,22 @@ function WishlistDetail({ token, wishlist, allWishlists, canUseMatureContent, pi
     {wishlist.isPrimaryOwner !== false && <div className="danger-zone"><button className="text-button danger-text" disabled={deletingList} onClick={async () => { if (!window.confirm(`Permanently delete “${wishlist.title}” and its contents? This cannot be undone.`)) return; setDeletingList(true); try { await api.deleteWishlist(token, wishlist.id); onDeleted() } catch (e) { onError(e); setDeletingList(false) } }}><Trash2 /> {deletingList ? 'Deleting…' : 'Delete wishlist'}</button><p className="hint">Deleting an active list frees a place on your free plan.</p></div>}
     {editingDescription && <DescriptionModal initial={wishlist.description || ''} close={() => setEditingDescription(false)} save={async (description) => { try { await api.updateWishlistSettings(token, wishlist.id, { description }); onRenamed({ ...wishlist, description }); setEditingDescription(false); notify('Description saved') } catch (e) { onError(e) } }} />}
   </div>
+}
+
+function SwapWishlistEditor({ token, wishlist, onChanged }: { token: string; wishlist: Wishlist; onChanged: () => void }) {
+  const [items, setItems] = useState<WishlistItem[]>([]), [editor, setEditor] = useState<WishlistItem | 'new' | null>(null), [error, setError] = useState('')
+  const load = useCallback(async () => { try { setItems(await api.items(token, wishlist.id)); setError('') } catch (e) { setError(e instanceof Error ? e.message : 'Unable to load items.') } }, [token, wishlist.id])
+  useEffect(() => { void load() }, [load])
+  async function remove(item: WishlistItem) {
+    if (!window.confirm(`Remove “${item.title}” from this swap wishlist?`)) return
+    try { await api.deleteItem(token, wishlist.id, item.id); await load(); onChanged() } catch (e) { setError(e instanceof Error ? e.message : 'Unable to remove item.') }
+  }
+  return <div className="stack-form"><button className="primary" onClick={() => setEditor('new')}><Plus /> Add a wish</button>{items.map(item => <OwnerItemCard key={item.id + item.updatedAt} token={token} item={item} edit={() => setEditor(item)} remove={() => void remove(item)} />)}{error && <p role="alert">{error}</p>}{editor && <AddItemModal token={token} wishlist={wishlist} allWishlists={[wishlist]} candidates={[]} initial={editor === 'new' ? undefined : editor} close={() => setEditor(null)} save={async (changes, image) => {
+    const saved = editor === 'new' ? await api.createItem(token, wishlist.id, changes) : await api.updateItem(token, wishlist.id, editor.id, changes)
+    if (image.file) await api.uploadItemImage(token, wishlist.id, saved.id, image.file)
+    else if (image.remove && editor !== 'new') await api.removeItemImage(token, wishlist.id, saved.id)
+    setEditor(null); await load(); onChanged()
+  }} />}</div>
 }
 
 function salePrice(item: WishlistItem) {

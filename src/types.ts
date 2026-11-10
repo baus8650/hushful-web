@@ -59,11 +59,11 @@ export interface ShareViewResponse {
   requiresAdultConfirmation?: boolean
 }
 
-export interface SwapWish { title: string; url?: string; note?: string }
+export interface SwapWish { title: string; url?: string; note?: string; id?: string; updatedAt?: string; price?: number; currencyCode?: string; quantity?: number; salePrice?: number; saleDiscountPercent?: number; saleEndsAt?: string; itemType?: 'wish' | 'cash_fund'; contributionGoal?: number }
 export interface HushfulSwap {
   id: string; title: string; exchangeDate: string; priceLimit?: number; currencyCode: string
   status: 'draft' | 'drawn' | 'cancelled'; isAdmin: boolean; myID: string; myStatus: string
-  reminderDays?: number; wishes: SwapWish[]
+  reminderDays?: number; wishes: SwapWish[]; wishlist?: Wishlist
   members: { id: string; name: string; status: string; canRemind: boolean }[]
   recipient?: { name: string; wishes: SwapWish[] }; inviteURL?: string
 }
