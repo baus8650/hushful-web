@@ -58,7 +58,15 @@ async function protectedImage(path: string, accessToken?: string, viewerToken?: 
   return response.blob()
 }
 
+export type AnnouncementInput = { id: string; title: string; message: string }
+export type Announcement = AnnouncementInput & { recipientCount: number; pendingCount: number; createdAt?: string }
 export const api = {
+  announcementPreference: (token: string) => request<{ enabled: boolean }>('/v1/me/announcement-preference', { headers: auth(token), cache: 'no-store' }),
+  updateAnnouncementPreference: (token: string, enabled: boolean) => request<{ enabled: boolean }>('/v1/me/announcement-preference', { method: 'PUT', headers: auth(token), body: JSON.stringify({ enabled }) }),
+  announcements: (token: string) => request<Announcement[]>('/v1/admin/announcements', { headers: auth(token), cache: 'no-store' }),
+  announcementAudience: (token: string) => request<{ users: number; pushUsers: number }>('/v1/admin/announcements/audience', { headers: auth(token), cache: 'no-store' }),
+  sendAnnouncement: (token: string, body: AnnouncementInput) => request<Announcement>('/v1/admin/announcements', { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
+  testAnnouncement: (token: string, body: AnnouncementInput) => request<void>('/v1/admin/announcements/test', { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
   swaps: (token: string) => request<HushfulSwap[]>('/v1/swaps', { headers: auth(token) }),
   createSwap: (token: string, body: { title: string; exchangeDate: string; currencyCode: string; priceLimit?: number; userIDs: string[] }) => request<HushfulSwap>('/v1/swaps', { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
   swap: (id: string, token: string) => request<HushfulSwap>(`/v1/swaps/${id}`, { headers: auth(token) }),
