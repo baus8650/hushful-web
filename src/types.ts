@@ -8,7 +8,7 @@ export interface RecurringOccasion { id?: string; name: string; eventMonth: numb
 export interface WishlistAudience { userIDs: string[]; groupIDs: string[] }
 export interface ActivityItem { reportID?: string; id: string; kind: string; title: string; message: string; actorID?: string; wishlistID?: string; readAt?: string; createdAt?: string }
 export interface ActivityUnreadCount { count: number }
-export interface Wishlist { currencyCode?: string;
+export interface Wishlist { currencyCode?: string; purpose?: 'for_myself' | 'for_others';
   id: string; title: string; visibility: 'private' | 'public'; collaborationMode?: 'our_wishlist' | 'gift_planning';
   isPrimaryOwner?: boolean; isCollaborative?: boolean; occasionDate?: string; reminderEnabled?: boolean;
   icon?: string; colorTheme?: string; isArchived?: boolean; description?: string; customColorHex?: string; reminderDate?: string;
@@ -57,4 +57,13 @@ export interface ShareViewResponse {
   viewerToken: string
   wishlist: { id: string; title: string; sharedByName: string; currencyCode?: string }
   requiresAdultConfirmation?: boolean
+}
+
+export interface SwapWish { title: string; url?: string; note?: string }
+export interface HushfulSwap {
+  id: string; title: string; exchangeDate: string; priceLimit?: number; currencyCode: string
+  status: 'draft' | 'drawn' | 'cancelled'; isAdmin: boolean; myID: string; myStatus: string
+  reminderDays?: number; wishes: SwapWish[]
+  members: { id: string; name: string; status: string; canRemind: boolean }[]
+  recipient?: { name: string; wishes: SwapWish[] }; inviteURL?: string
 }

@@ -1,3 +1,4 @@
+import type { HushfulSwap, SwapWish } from './types'
 import type { UsageDashboard } from './usageMetrics'
 import type { AccountSharedWishlist, ActivityItem, ActivityUnreadCount, AdminAccount, AdminAccountActivity, AdminProGrant, BirthdayAlert, CurrentUser, EmailVerificationPendingResponse, FeedbackThread, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileDetails, RecurringOccasion, ShareViewResponse, SharedItemRow, SocialUser, TokenResponse, UserFeedback, UserReport, Wishlist, WishlistAudience, WishlistCollaboration, WishlistDiscussionComment, WishlistItem, WishlistSettings } from './types'
 
@@ -58,6 +59,12 @@ async function protectedImage(path: string, accessToken?: string, viewerToken?: 
 }
 
 export const api = {
+  swaps: (token: string) => request<HushfulSwap[]>('/v1/swaps', { headers: auth(token) }),
+  createSwap: (token: string, body: { title: string; exchangeDate: string; currencyCode: string; priceLimit?: number; userIDs: string[] }) => request<HushfulSwap>('/v1/swaps', { method: 'POST', headers: auth(token), body: JSON.stringify(body) }),
+  swap: (id: string, token?: string, key?: string) => request<HushfulSwap>(`/v1/${key ? 'guest-swaps' : 'swaps'}/${id}`, { headers: key ? { 'X-Swap-Key': key } : auth(token || '') }),
+  updateSwap: (id: string, body: { action: string; memberID?: string; wishes?: SwapWish[]; wishlistID?: string; reminderDays?: number | null }, token?: string, key?: string) => request<HushfulSwap>(`/v1/${key ? 'guest-swaps' : 'swaps'}/${id}`, { method: 'POST', headers: key ? { 'X-Swap-Key': key } : auth(token || ''), body: JSON.stringify(body) }),
+  swapInvite: (invite: string) => request<{ title: string; exchangeDate: string; status: string }>(`/v1/swap-invites/${encodeURIComponent(invite)}`),
+  joinSwap: (invite: string, name: string, token?: string) => request<{ swap: HushfulSwap; guestKey?: string }>(`/v1/swap-invites/${encodeURIComponent(invite)}`, { method: 'POST', headers: token ? auth(token) : {}, body: JSON.stringify({ name }) }),
   register: (email: string, password: string, displayName: string, acceptedTermsVersion = CURRENT_TERMS_VERSION, ageConfirmed = false) => request<EmailVerificationPendingResponse>('/v1/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName, website: '', acceptedTermsVersion, ageConfirmed }) }),
   login: (email: string, password: string, totpCode?: string) => request<TokenResponse>('/v1/auth/login', { method: 'POST', body: JSON.stringify({ email, password, ...(totpCode ? { totpCode } : {}) }) }),
   googleLogin: (idToken: string, acceptedTermsVersion?: string, totpCode?: string, ageConfirmed = false) => request<TokenResponse>('/v1/auth/google', { method: 'POST', body: JSON.stringify({ idToken, ...(acceptedTermsVersion ? { acceptedTermsVersion, ageConfirmed } : {}), ...(totpCode ? { totpCode } : {}) }) }),

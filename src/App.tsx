@@ -1,3 +1,4 @@
+import { SwapBanner, SwapGuestPage } from './HushfulSwap'
 import { safetyReportsForActivity } from './safetyReportActivity'
 import { groupAudienceMembers } from './sharingAudience'
 import { trackUsage } from './usageMetrics'
@@ -21,6 +22,7 @@ export default function App() {
   const publicPage = legalRoute(window.location.pathname)
   const resetToken = new URLSearchParams(window.location.search).get('resetToken')
   const verificationToken = new URLSearchParams(window.location.search).get('verifyEmailToken')
+  const swapInvite = window.location.pathname.match(/^\/swap\/([a-f0-9]{64})$/)?.[1]
   const guestShareToken = window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]
   const [token, setToken] = useState<string | null>(authStorage.get())
   const [user, setUser] = useState<CurrentUser | null>(null)
@@ -54,6 +56,7 @@ export default function App() {
     if (!token || publicPage || guestShareToken || resetToken || verificationToken) trackUsage(publicPage ? window.location.pathname : path)
   }, [guestShareToken, resetToken, verificationToken, token, publicPage, metricsPage])
 
+  if (swapInvite) return <>{themeToggle}<SwapGuestPage invite={swapInvite} token={token || undefined} /></>
   if (publicPage) return <>{themeToggle}<LegalPage page={publicPage} /></>
   if (resetToken) return <>{themeToggle}<ResetPasswordScreen token={resetToken} /></>
   if (verificationToken) return <>{themeToggle}<VerifyEmailScreen token={verificationToken} onAuthenticated={(accessToken) => { window.history.replaceState({}, '', '/'); authStorage.set(accessToken); setLoading(true); setToken(accessToken) }} /></>
@@ -788,7 +791,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
     {mobileNav && <button className="scrim" aria-label="Close navigation" onClick={() => setMobileNav(false)} />}
     <main className="main-panel">
       <header className="mobile-header"><button className="icon-button" onClick={() => setMobileNav(true)}><Menu /></button><Logo compact onClick={() => select({ kind: 'home' })} /><span /></header>
-      {busy ? <FullPageLoader embedded /> : view.kind === 'home' ? <Home user={user} wishlists={wishlists} shared={sharedForDisplay.filter((share) => Boolean(share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)))} openWishlist={(w) => select({ kind: 'wishlist', wishlist: w })} openShared={(s) => select({ kind: 'shared', share: s })} newWishlist={openCreate} openShare={() => setShareOpen(true)} /> : view.kind === 'wishlist' ? <WishlistDetail token={token} wishlist={{ ...view.wishlist, proAccess: user.isPro === true }} canUseMatureContent={user.ageBand === 'adult'} onDeleted={() => { setWishlists((all) => all.filter((list) => list.id !== view.wishlist.id)); select({ kind: 'home' }); notify('Wishlist deleted') }} allWishlists={wishlists} pinned={pins.wishlistIDs.includes(view.wishlist.id)} togglePin={() => void toggleWishlistPin(view.wishlist.id)} onRenamed={(updated) => { setWishlists((all) => all.map((item) => item.id === updated.id ? updated : item)); setView({ kind: 'wishlist', wishlist: updated }) }} onError={onError} notify={notify} /> : <SharedDetail token={token} accountId={user.id} defaultNoteName={user.displayName || user.email.split('@')[0]} share={view.share} pinned={Boolean(view.share.wishlistID && pins.wishlistIDs.includes(view.share.wishlistID))} togglePin={() => view.share.wishlistID && void toggleWishlistPin(view.share.wishlistID)} onError={onError} notify={notify} onRemove={() => void removeShare(view.share)} onAdd={() => addShareToAccount(view.share)} />}
+      {busy ? <FullPageLoader embedded /> : view.kind === 'home' ? <Home token={token} user={user} wishlists={wishlists} shared={sharedForDisplay.filter((share) => Boolean(share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)))} openWishlist={(w) => select({ kind: 'wishlist', wishlist: w })} openShared={(s) => select({ kind: 'shared', share: s })} newWishlist={openCreate} openShare={() => setShareOpen(true)} /> : view.kind === 'wishlist' ? <WishlistDetail token={token} wishlist={{ ...view.wishlist, proAccess: user.isPro === true }} canUseMatureContent={user.ageBand === 'adult'} onDeleted={() => { setWishlists((all) => all.filter((list) => list.id !== view.wishlist.id)); select({ kind: 'home' }); notify('Wishlist deleted') }} allWishlists={wishlists} pinned={pins.wishlistIDs.includes(view.wishlist.id)} togglePin={() => void toggleWishlistPin(view.wishlist.id)} onRenamed={(updated) => { setWishlists((all) => all.map((item) => item.id === updated.id ? updated : item)); setView({ kind: 'wishlist', wishlist: updated }) }} onError={onError} notify={notify} /> : <SharedDetail token={token} accountId={user.id} defaultNoteName={user.displayName || user.email.split('@')[0]} share={view.share} pinned={Boolean(view.share.wishlistID && pins.wishlistIDs.includes(view.share.wishlistID))} togglePin={() => view.share.wishlistID && void toggleWishlistPin(view.share.wishlistID)} onError={onError} notify={notify} onRemove={() => void removeShare(view.share)} onAdd={() => addShareToAccount(view.share)} />}
     </main>
     {proOpen && <Modal close={() => setProOpen(false)}><ModalHeader eyebrow="Your plan" title={user.isPro ? "Hushful Pro is active" : "Make room for more wishes"} close={() => setProOpen(false)} /><ProPlan isPro={user.isPro === true} activeLists={activeOwnedListCount(wishlists)} /><button className="secondary" disabled={refreshingPro} onClick={() => void refreshPro()}><RefreshCw /> {refreshingPro ? 'Checking…' : 'Refresh Pro status'}</button></Modal>}
     {createOpen && <CreateWishlistModal close={() => setCreateOpen(false)} create={createWishlist} />}
@@ -803,11 +806,12 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   </div>
 }
 
-function Home({ user, wishlists, shared, openWishlist, openShared, newWishlist, openShare }: { user: CurrentUser; wishlists: Wishlist[]; shared: SharedWishlist[]; openWishlist: (w: Wishlist) => void; openShared: (s: SharedWishlist) => void; newWishlist: () => void; openShare: () => void }) {
+function Home({ token, user, wishlists, shared, openWishlist, openShared, newWishlist, openShare }: { token: string; user: CurrentUser; wishlists: Wishlist[]; shared: SharedWishlist[]; openWishlist: (w: Wishlist) => void; openShared: (s: SharedWishlist) => void; newWishlist: () => void; openShare: () => void }) {
   const owned = wishlists.filter((wishlist) => wishlist.isCollaborative !== true && !wishlist.isArchived)
   const collaborations = wishlists.filter((wishlist) => wishlist.isCollaborative === true && !wishlist.isArchived)
   const archived = wishlists.filter((wishlist) => wishlist.isArchived)
   return <div className="page home-page">
+    <SwapBanner token={token} wishlists={wishlists} />
     <header className="page-heading"><div><p className="eyebrow">Your quiet corner</p><h1>Good {greeting()}, {firstName(user.displayName)}.</h1><p>Gather every wish. Keep every gift a surprise.</p></div><button className="primary" onClick={newWishlist}><Plus /> New wishlist</button></header>
     {wishlists.length === 0 && shared.length === 0 ? <EmptyState icon={<Gift />} title="A little space for things you love" text="Create your first wishlist, then share it privately with friends and family." action={<button className="primary" onClick={newWishlist}><Plus /> Create a wishlist</button>} /> : <>
       <section><SectionTitle title="My wishlists" subtitle={`${owned.length} ${owned.length === 1 ? 'collection' : 'collections'}`} action={<button className="text-button" onClick={newWishlist}>Add new <Plus /></button>} />
