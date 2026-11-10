@@ -45,19 +45,19 @@ function SwapDialog({ close, children }: { close: () => void; children: ReactNod
 }
 function CreateSwap({ token, created }: { token: string; created: (swap: HushfulSwap) => void }) {
   const [friends, setFriends] = useState<Friendship[]>([]), [ids, setIDs] = useState<string[]>([])
-  const [title, setTitle] = useState('Hushful Swap'), [date, setDate] = useState(''), [limit, setLimit] = useState(''), [currency, setCurrency] = useState('USD')
+  const [title, setTitle] = useState(''), [date, setDate] = useState(''), [limit, setLimit] = useState(''), [currency, setCurrency] = useState('USD')
   const [busy, setBusy] = useState(false), [error, setError] = useState('')
   useEffect(() => { api.friends(token).then(setFriends).catch(e => setError(message(e))) }, [token])
   async function submit(e: FormEvent) {
     e.preventDefault(); setBusy(true); setError('')
-    try { created(await api.createSwap(token, { title, exchangeDate: date, currencyCode: currency, priceLimit: limit ? Number(limit) : undefined, userIDs: ids })) } catch (e) { setError(message(e)) } finally { setBusy(false) }
+    try { created(await api.createSwap(token, { title: title.trim() || 'Hushful Swap', exchangeDate: date, currencyCode: currency, priceLimit: limit ? Number(limit) : undefined, userIDs: ids })) } catch (e) { setError(message(e)) } finally { setBusy(false) }
   }
   return <form className="stack-form" onSubmit={submit}><h2>Start a Hushful Swap</h2><p>You participate as the organizer. Invite friends now and share an invitation link afterward.</p>
-    <label>Swap name<input value={title} maxLength={80} onChange={e => setTitle(e.target.value)} required /></label>
+    <label>Swap name (optional)<input value={title} maxLength={80} onChange={e => setTitle(e.target.value)} /></label>
     <label>Exchange date<input type="date" value={date} min={new Date().toLocaleDateString('en-CA')} onChange={e => setDate(e.target.value)} required /></label>
     <label>Price limit (optional)<input type="number" min="0.01" max="1000000" step="any" value={limit} onChange={e => setLimit(e.target.value)} /></label>
     <label>Currency<input value={currency} maxLength={3} onChange={e => setCurrency(e.target.value.toUpperCase())} required /></label>
-    <fieldset><legend>Invite friends</legend>{friends.length ? friends.map(f => <label className="checkbox" key={f.user.id}><input type="checkbox" checked={ids.includes(f.user.id)} onChange={e => setIDs(e.target.checked ? [...ids, f.user.id] : ids.filter(id => id !== f.user.id))} />{f.user.displayName || f.user.username}</label>) : <p className="hint">You can also invite people with an invitation link after creating the swap.</p>}</fieldset>
+    <fieldset><legend>Invite friends</legend>{friends.map(f => <label className="checkbox" key={f.user.id}><input type="checkbox" checked={ids.includes(f.user.id)} onChange={e => setIDs(e.target.checked ? [...ids, f.user.id] : ids.filter(id => id !== f.user.id))} />{f.user.displayName || f.user.username}</label>)}<p className="hint">Missing someone? Create your swap, then share an invitation link with anyone you’d like to invite. They’ll sign in or create a Hushful account to join.</p></fieldset>
     {error && <p role="alert" className="auth-error">{error}</p>}<button className="primary" disabled={busy}>{busy ? 'Creating…' : 'Create swap'}</button></form>
 }
 export function SwapDetail({ initial, token, wishlists = [], renderWishlist }: { initial: HushfulSwap; token: string; wishlists?: Wishlist[]; renderWishlist: WishlistRenderer }) {
