@@ -7,16 +7,21 @@ const day = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString()
 
 export function SwapBanner({ token, wishlists }: { token: string; wishlists: Wishlist[] }) {
   const [swaps, setSwaps] = useState<HushfulSwap[]>([]), [selected, setSelected] = useState<HushfulSwap | null>(null)
-  const [create, setCreate] = useState(false), [error, setError] = useState('')
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem('hushful.swap.introductionDismissed') === '1'), [error, setError] = useState('')
   const load = useCallback(async () => { try { setSwaps(await api.swaps(token)); setError('') } catch (e) { setError(message(e)) } }, [token])
-  useEffect(() => { void load(); const refresh = () => { void load() }; window.addEventListener('focus', refresh); return () => window.removeEventListener('focus', refresh) }, [load])
-  return <section className="swap-banner" aria-label="Hushful Swap">
-    <div className="swap-heading"><div><strong>Hushful Swap</strong><p>Draw a recipient. Keep the giving a surprise.</p></div><button className="secondary" onClick={() => setCreate(true)}>Start a swap</button></div>
+  useEffect(() => { void load(); const refresh = () => { void load() }; window.addEventListener('focus', refresh); window.addEventListener('hushful:swaps-changed', refresh); return () => { window.removeEventListener('focus', refresh); window.removeEventListener('hushful:swaps-changed', refresh) } }, [load])
+  return <>
+    {!dismissed && <section className="swap-banner" aria-label="Introducing Hushful Swap"><div className="swap-heading"><strong>Introducing Hushful Swap</strong><button className="text-button" aria-label="Dismiss Hushful Swap announcement" onClick={() => { setDismissed(true); localStorage.setItem('hushful.swap.introductionDismissed', '1') }}>Dismiss</button></div><p>A secret gift exchange for any occasion. Invite your people, draw recipients, and keep every gifter a surprise.</p><p className="hint">To start, open the navigation menu and choose Start Hushful Swap.</p></section>}
+    {(swaps.some(s => s.status !== 'cancelled') || error) && <section className="swap-banner" aria-label="Your Hushful Swaps"><h2>Your Hushful Swaps</h2>
     {error && <p role="alert">{error} <button className="text-button" onClick={() => void load()}>Retry</button></p>}
     {swaps.filter(s => s.status !== 'cancelled').map(s => <button key={s.id} className="swap-row" onClick={async () => { try { setSelected(await api.swap(s.id, token)) } catch (e) { setError(message(e)) } }}><span><strong>{s.title}</strong><small>{day(s.exchangeDate)} · {s.myStatus === 'pending' ? 'Invitation waiting' : s.status === 'drawn' ? 'Your recipient is ready' : 'Preparing the draw'}</small></span><span>Open →</span></button>)}
-    {create && <SwapDialog close={() => setCreate(false)}><CreateSwap token={token} created={s => { setCreate(false); setSelected(s); void load() }} /></SwapDialog>}
+    </section>}
     {selected && <SwapDialog close={() => { setSelected(null); void load() }}><SwapDetail initial={selected} token={token} wishlists={wishlists} /></SwapDialog>}
-  </section>
+  </>
+}
+export function SwapCreationDialog({ token, wishlists, close }: { token: string; wishlists: Wishlist[]; close: () => void }) {
+  const [created, setCreated] = useState<HushfulSwap | null>(null)
+  return <SwapDialog close={close}>{created ? <SwapDetail initial={created} token={token} wishlists={wishlists} /> : <CreateSwap token={token} created={swap => { setCreated(swap); window.dispatchEvent(new Event('hushful:swaps-changed')) }} />}</SwapDialog>
 }
 function SwapDialog({ close, children }: { close: () => void; children: ReactNode }) {
   const dialog = useRef<HTMLElement>(null)

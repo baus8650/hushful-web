@@ -1,4 +1,4 @@
-import { SwapBanner, SwapGuestPage } from './HushfulSwap'
+import { SwapBanner, SwapGuestPage, SwapCreationDialog } from './HushfulSwap'
 import { safetyReportsForActivity } from './safetyReportActivity'
 import { groupAudienceMembers } from './sharingAudience'
 import { trackUsage } from './usageMetrics'
@@ -636,6 +636,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
     .filter((share) => canShowAgeRestrictedLists || share.matureContentEnabled !== true)
   const [busy, setBusy] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
+  const [createSwapOpen, setCreateSwapOpen] = useState(false)
   const [proOpen, setProOpen] = useState(false)
   const [refreshingPro, setRefreshingPro] = useState(false)
   const creating = useRef(false)
@@ -763,6 +764,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
       <div className="sidebar-top"><Logo compact onClick={() => select({ kind: 'home' })} /><button className="icon-button mobile-close" onClick={() => setMobileNav(false)}><X /></button></div>
       <nav>
         <button className={`nav-home ${view.kind === 'home' ? 'active' : ''}`} onClick={() => select({ kind: 'home' })}><Sparkles /> Overview</button>
+        <button className="nav-home" onClick={() => { setCreateSwapOpen(true); setMobileNav(false) }}><Gift /> Start Hushful Swap</button>
         <button className="nav-home" onClick={() => { setFriendsOpen(true); setMobileNav(false) }}><Users /> Friends</button>
         <button className="nav-home" onClick={() => { setPeopleSearchOpen(true); setMobileNav(false) }}><User /> Find people</button>
         <button className="nav-home" onClick={() => { setActivityOpen(true); setMobileNav(false) }}><Bell /> Activity {unreadActivityCount > 0 && <span className="notification-badge">{unreadActivityCount}</span>}</button>
@@ -794,6 +796,7 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
       {busy ? <FullPageLoader embedded /> : view.kind === 'home' ? <Home token={token} user={user} wishlists={wishlists} shared={sharedForDisplay.filter((share) => Boolean(share.wishlistID && pins.wishlistIDs.includes(share.wishlistID)))} openWishlist={(w) => select({ kind: 'wishlist', wishlist: w })} openShared={(s) => select({ kind: 'shared', share: s })} newWishlist={openCreate} openShare={() => setShareOpen(true)} /> : view.kind === 'wishlist' ? <WishlistDetail token={token} wishlist={{ ...view.wishlist, proAccess: user.isPro === true }} canUseMatureContent={user.ageBand === 'adult'} onDeleted={() => { setWishlists((all) => all.filter((list) => list.id !== view.wishlist.id)); select({ kind: 'home' }); notify('Wishlist deleted') }} allWishlists={wishlists} pinned={pins.wishlistIDs.includes(view.wishlist.id)} togglePin={() => void toggleWishlistPin(view.wishlist.id)} onRenamed={(updated) => { setWishlists((all) => all.map((item) => item.id === updated.id ? updated : item)); setView({ kind: 'wishlist', wishlist: updated }) }} onError={onError} notify={notify} /> : <SharedDetail token={token} accountId={user.id} defaultNoteName={user.displayName || user.email.split('@')[0]} share={view.share} pinned={Boolean(view.share.wishlistID && pins.wishlistIDs.includes(view.share.wishlistID))} togglePin={() => view.share.wishlistID && void toggleWishlistPin(view.share.wishlistID)} onError={onError} notify={notify} onRemove={() => void removeShare(view.share)} onAdd={() => addShareToAccount(view.share)} />}
     </main>
     {proOpen && <Modal close={() => setProOpen(false)}><ModalHeader eyebrow="Your plan" title={user.isPro ? "Hushful Pro is active" : "Make room for more wishes"} close={() => setProOpen(false)} /><ProPlan isPro={user.isPro === true} activeLists={activeOwnedListCount(wishlists)} /><button className="secondary" disabled={refreshingPro} onClick={() => void refreshPro()}><RefreshCw /> {refreshingPro ? 'Checking…' : 'Refresh Pro status'}</button></Modal>}
+    {createSwapOpen && <SwapCreationDialog token={token} wishlists={wishlists} close={() => { setCreateSwapOpen(false); window.dispatchEvent(new Event('hushful:swaps-changed')) }} />}
     {createOpen && <CreateWishlistModal close={() => setCreateOpen(false)} create={createWishlist} />}
     {shareOpen && <OpenShareModal accessToken={token} accountId={user.id} initialToken={window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]} close={() => setShareOpen(false)} save={saveShare} onError={onError} />}
     {sharedLibraryOpen && <Modal close={() => setSharedLibraryOpen(false)} size="modal-wide"><ModalHeader eyebrow="Your complete library" title="All shared lists" close={() => setSharedLibraryOpen(false)} /><div className="social-stack">{sharedForDisplay.length ? [...sharedForDisplay].sort((a, b) => a.title.localeCompare(b.title, undefined, { sensitivity: 'base' })).map((share) => <button className="profile-list-row" key={share.accountShareID || share.shareToken} onClick={() => { setSharedLibraryOpen(false); select({ kind: 'shared', share }) }}><Gift /><span><strong>{share.title}</strong><small>Shared by {share.sharedByName || 'Someone'}</small></span><ChevronRight /></button>) : <p className="hint">No lists have been shared with you yet.</p>}<div className="modal-actions"><button className="secondary" onClick={() => { setSharedLibraryOpen(false); setShareOpen(true) }}><Link2 /> Open a link</button></div></div></Modal>}
@@ -811,8 +814,8 @@ function Home({ token, user, wishlists, shared, openWishlist, openShared, newWis
   const collaborations = wishlists.filter((wishlist) => wishlist.isCollaborative === true && !wishlist.isArchived)
   const archived = wishlists.filter((wishlist) => wishlist.isArchived)
   return <div className="page home-page">
-    <SwapBanner token={token} wishlists={wishlists} />
     <header className="page-heading"><div><p className="eyebrow">Your quiet corner</p><h1>Good {greeting()}, {firstName(user.displayName)}.</h1><p>Gather every wish. Keep every gift a surprise.</p></div><button className="primary" onClick={newWishlist}><Plus /> New wishlist</button></header>
+    <SwapBanner token={token} wishlists={wishlists} />
     {wishlists.length === 0 && shared.length === 0 ? <EmptyState icon={<Gift />} title="A little space for things you love" text="Create your first wishlist, then share it privately with friends and family." action={<button className="primary" onClick={newWishlist}><Plus /> Create a wishlist</button>} /> : <>
       <section><SectionTitle title="My wishlists" subtitle={`${owned.length} ${owned.length === 1 ? 'collection' : 'collections'}`} action={<button className="text-button" onClick={newWishlist}>Add new <Plus /></button>} />
         <div className="card-grid">{owned.map((wishlist, index) => <button className="wishlist-card" key={wishlist.id} onClick={() => openWishlist({ ...wishlist, proAccess: user.isPro === true })}><div className={`card-art art-${index % 4}`}><Gift /></div><div><span className="card-kicker">Wishlist</span><h3>{wishlist.title}</h3><p>{wishlist.visibility === 'public' ? 'Public' : 'Private'}</p></div><ChevronRight /></button>)}</div>
