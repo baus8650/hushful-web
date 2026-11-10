@@ -9,11 +9,10 @@ const day = (date: string) => new Date(`${date}T12:00:00`).toLocaleDateString()
 
 export function SwapBanner({ token, wishlists, renderWishlist }: { token: string; wishlists: Wishlist[]; renderWishlist: WishlistRenderer }) {
   const [swaps, setSwaps] = useState<HushfulSwap[]>([]), [selected, setSelected] = useState<HushfulSwap | null>(null)
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem('hushful.swap.introductionDismissed') === '1'), [error, setError] = useState('')
+  const [error, setError] = useState('')
   const load = useCallback(async () => { try { setSwaps(await api.swaps(token)); setError('') } catch (e) { setError(message(e)) } }, [token])
   useEffect(() => { void load(); const refresh = () => { void load() }; window.addEventListener('focus', refresh); window.addEventListener('hushful:swaps-changed', refresh); return () => { window.removeEventListener('focus', refresh); window.removeEventListener('hushful:swaps-changed', refresh) } }, [load])
   return <>
-    {!dismissed && <section className="swap-banner" aria-label="Introducing Hushful Swap"><div className="swap-heading"><strong>Introducing Hushful Swap</strong><button className="text-button" aria-label="Dismiss Hushful Swap announcement" onClick={() => { setDismissed(true); localStorage.setItem('hushful.swap.introductionDismissed', '1') }}>Dismiss</button></div><p>A secret gift exchange for any occasion. Invite your people, draw recipients, and keep every gifter a surprise.</p><p className="hint">To start, open the navigation menu and choose Start Hushful Swap.</p></section>}
     {(swaps.some(s => s.status !== 'cancelled') || error) && <section className="swap-banner" aria-label="Your Hushful Swaps"><h2>Your Hushful Swaps</h2>
     {error && <p role="alert">{error} <button className="text-button" onClick={() => void load()}>Retry</button></p>}
     {swaps.filter(s => s.status !== 'cancelled').map(s => <button key={s.id} className="swap-row" onClick={async () => { try { setSelected(await api.swap(s.id, token)) } catch (e) { setError(message(e)) } }}><span><strong>{s.title}</strong><small>{day(s.exchangeDate)} · {s.myStatus === 'pending' ? 'Invitation waiting' : s.status === 'drawn' ? 'Your recipient is ready' : 'Preparing the draw'}</small></span><span>Open →</span></button>)}

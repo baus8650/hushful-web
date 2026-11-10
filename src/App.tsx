@@ -1,3 +1,4 @@
+import type { AnnouncementArchiveItem } from './api'
 import { AdminAnnouncements, AnnouncementPreference, AnnouncementCards } from './Announcements'
 import { SwapBanner, SwapInvitationPage, SwapCreationDialog } from './HushfulSwap'
 import { safetyReportsForActivity } from './safetyReportActivity'
@@ -5,7 +6,7 @@ import { groupAudienceMembers } from './sharingAudience'
 import { trackUsage } from './usageMetrics'
 import { MetricsPage } from './MetricsPage'
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
-import { ArrowUpRight, Banknote, Bell, CalendarDays, Check, ChevronRight, CircleAlert, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Menu, MessageCircle, Moon, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, ShieldCheck, Sparkles, Sun, Trash2, User, Users, X } from 'lucide-react'
+import { ArrowUpRight, Banknote, Bell, CalendarDays, Check, ChevronRight, CircleAlert, CircleHelp, Copy, ExternalLink, Gift, Link2, LoaderCircle, LogOut, Megaphone, Menu, MessageCircle, Moon, PackageCheck, Pencil, Pin, Plus, RefreshCw, Send, Settings, Share2, ShieldCheck, Sparkles, Sun, Trash2, User, Users, X } from 'lucide-react'
 import { api, ApiError, CURRENT_TERMS_VERSION } from './api'
 import { authStorage, shareStorage } from './storage'
 import type { AccountSharedWishlist, ActivityItem, AdminAccount, AdminAccountActivity, CurrentUser, FriendGroup, FriendProfile, Friendship, GuestShareLink, Pins, ProfileAttribute, ProfileWishlist, RecurringOccasion, ShareViewResponse, SharedItemRow, SharedWishlist, SocialUser, Wishlist, WishlistAudience, WishlistDiscussionComment, WishlistItem } from './types'
@@ -658,8 +659,8 @@ function Dashboard({ token, user, setUser, logout, onError, notify }: { token: s
   const [unreadActivityCount, setUnreadActivityCount] = useState(0)
   const updateActivity = useCallback((next: ActivityItem[]) => {
     setActivity(next)
-    setUnreadActivityCount(next.filter((item) => !item.readAt).length)
-  }, [])
+    void api.unreadActivityCount(token).then(value => setUnreadActivityCount(value.count)).catch(() => undefined)
+  }, [token])
   const [pins, setPins] = useState<Pins>({ wishlistIDs: [], userIDs: [], groupIDs: [] })
   const [socialFriends, setSocialFriends] = useState<Friendship[]>([])
   const [socialGroups, setSocialGroups] = useState<FriendGroup[]>([])
@@ -1280,17 +1281,70 @@ function FriendProfileModal({ token, friendship, person, close, removed, added, 
 
 function ActivityModal({ token, items, changed, close, openWishlist, onError }: { token: string; items: ActivityItem[]; changed: (items: ActivityItem[]) => void; close: () => void; openWishlist: (wishlistID: string) => void; onError: (e: unknown) => void }) {
   const [reportActivity, setReportActivity] = useState<ActivityItem | null>(null)
-  useEffect(() => { if (!items.some((item) => !item.readAt)) return; api.readAllActivity(token).then(() => changed(items.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })))).catch(onError) }, [items, changed, onError, token])
+  const [segment, setSegment] = useState<'activity' | 'announcements'>('activity')
+  const [announcements, setAnnouncements] = useState<AnnouncementArchiveItem[]>([])
+  const [announcementUnread, setAnnouncementUnread] = useState(0)
+  const [nextPage, setNextPage] = useState<number | undefined>()
+  const [archiveLoading, setArchiveLoading] = useState(true)
+  const [archiveError, setArchiveError] = useState('')
+  const [openedAnnouncement, setOpenedAnnouncement] = useState<AnnouncementArchiveItem | null>(null)
+  useEffect(() => {
+    let active = true
+    const load = () => { void api.announcementArchive(token).then(page => {
+      if (active) { setAnnouncements(page.items); setNextPage(page.nextPage); setAnnouncementUnread(page.unreadCount); setArchiveLoading(false); setArchiveError('') }
+    }).catch(e => { if (active) { setArchiveError(e instanceof Error ? e.message : 'Unable to load announcements.'); setArchiveLoading(false) } }) }
+    load(); window.addEventListener('focus', load)
+    return () => { active = false; window.removeEventListener('focus', load) }
+  }, [token])
+  async function loadOlder() {
+    setArchiveLoading(true)
+    try {
+      const page = await api.announcementArchive(token, nextPage ?? 1)
+      setAnnouncements(old => [...old, ...page.items.filter(item => !old.some(existing => existing.id === item.id))])
+      setNextPage(page.nextPage); setAnnouncementUnread(page.unreadCount); setArchiveError('')
+    } catch (e) { setArchiveError(e instanceof Error ? e.message : 'Unable to load announcements.') }
+    finally { setArchiveLoading(false) }
+  }
+  async function openAnnouncement(item: AnnouncementArchiveItem) {
+    setOpenedAnnouncement(item)
+    if (item.readAt) return
+    try {
+      await api.readAnnouncement(token, item.id)
+      setAnnouncements(old => old.map(entry => entry.id === item.id ? { ...entry, readAt: new Date().toISOString() } : entry))
+      const page = await api.announcementArchive(token)
+      setAnnouncementUnread(page.unreadCount); changed(items); setArchiveError('')
+    } catch (e) { setArchiveError(e instanceof Error ? e.message : 'Unable to mark announcement as read.') }
+  }
+  const announcementPanel = <div role="tabpanel" id="announcements-panel" aria-labelledby="announcements-tab" className="activity-list">
+    {archiveError && <p className="form-error" role="alert">{archiveError}<button type="button" className="text-button" onClick={() => { if (openedAnnouncement) void openAnnouncement(openedAnnouncement); else void loadOlder() }}>Retry</button></p>}
+    {openedAnnouncement ? <article><button type="button" className="text-button" onClick={() => setOpenedAnnouncement(null)}>Back to announcements</button><h2>{openedAnnouncement.title}</h2>{openedAnnouncement.createdAt && <small>{new Date(openedAnnouncement.createdAt).toLocaleDateString()}</small>}<p style={{ whiteSpace: 'pre-wrap' }}>{openedAnnouncement.message}</p></article> : <>
+      {!announcements.length && !archiveLoading && !archiveError && <EmptyState icon={<Bell />} title="No announcements yet" text="News from Hushful will appear here, including announcements dismissed from My Lists." />}
+      {announcements.map(item => <button type="button" className={`announcement-archive-row ${item.readAt ? '' : 'unread'}`} key={item.id} onClick={() => void openAnnouncement(item)}><strong>{item.title}{!item.readAt && <span className="announcement-unread-dot" aria-label="Unread" />}</strong><p>{item.message}</p>{item.createdAt && <small>{new Date(item.createdAt).toLocaleDateString()}</small>}</button>)}
+      {nextPage && <button type="button" className="secondary" disabled={archiveLoading} onClick={() => void loadOlder()}>Load older announcements</button>}
+    </>}
+    {archiveLoading && <p role="status">Loading announcements…</p>}
+  </div>
+  useEffect(() => { if (segment !== 'activity' || !items.some((item) => !item.readAt)) return; api.readAllActivity(token).then(() => changed(items.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })))).catch(onError) }, [items, changed, onError, token, segment])
   async function remove(id: string, confirmed = false) { if (!confirmed && !window.confirm('Clear this activity entry? This cannot be undone.')) return; try { await api.deleteActivity(token, id); changed(items.filter((item) => item.id !== id)) } catch (e) { onError(e) } }
   async function resolve(item: ActivityItem, accept: boolean) { if (!item.actorID) return; if (!accept && !window.confirm('Decline this friend request? The request will be removed from your activity.')) return; try { if (accept) await api.acceptFriendFrom(token, item.actorID); else await api.declineFriendFrom(token, item.actorID); await remove(item.id, true) } catch (e) { onError(e) } }
   async function clearAll() { if (!window.confirm('Clear all activity? This cannot be undone.')) return; try { await api.clearActivity(token); changed([]) } catch (e) { onError(e) } }
   if (reportActivity) return <SafetyReportActivityModal token={token} activity={reportActivity} close={() => setReportActivity(null)} />
-  return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="What’s new" title="Activity" close={close} /><div className="activity-list">{items.length ? <>{items.map((item) => {
+  return <Modal close={close} size="modal-wide"><ModalHeader eyebrow="What’s new" title="Activity" close={close} />
+    <div className="activity-segments" role="tablist" aria-label="Updates" onKeyDown={event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+      event.preventDefault()
+      const next = event.key === 'Home' ? 'activity' : event.key === 'End' ? 'announcements' : segment === 'activity' ? 'announcements' : 'activity'
+      setSegment(next); document.getElementById(`${next}-tab`)?.focus()
+    }}>
+      <button id="activity-tab" type="button" role="tab" tabIndex={segment === 'activity' ? 0 : -1} aria-selected={segment === 'activity'} aria-controls="activity-panel" onClick={() => setSegment('activity')}><Bell aria-hidden="true" /><span>Activity</span></button>
+      <button id="announcements-tab" type="button" role="tab" tabIndex={segment === 'announcements' ? 0 : -1} aria-selected={segment === 'announcements'} aria-controls="announcements-panel" onClick={() => setSegment('announcements')}><Megaphone aria-hidden="true" /><span>Announcements</span>{announcementUnread > 0 && <span className="notification-badge" aria-label={`${announcementUnread} unread`}>{announcementUnread > 99 ? '99+' : announcementUnread}</span>}</button>
+    </div>
+    {segment === 'announcements' ? announcementPanel : <div role="tabpanel" id="activity-panel" aria-labelledby="activity-tab" className="activity-list">{items.length ? <>{items.map((item) => {
     const isSafetyReport = Boolean(item.reportID) || item.kind === 'safety_report_submitted'
     const canOpenActivity = isSafetyReport || (item.kind !== 'friend_request' && Boolean(item.wishlistID))
     const openRelatedWishlist = () => { if (isSafetyReport) { setReportActivity(item); return }; if (item.wishlistID) openWishlist(item.wishlistID) }
     return <article className={`activity-item ${item.readAt ? '' : 'unread'}`} key={item.id}><span className="activity-icon">{item.kind === 'friend_request' || item.kind === 'friend_accepted' ? <Users /> : <Gift />}</span><div className={`activity-item-content${canOpenActivity ? ' clickable' : ''}`} role={canOpenActivity ? 'button' : undefined} tabIndex={canOpenActivity ? 0 : undefined} onClick={() => { if (canOpenActivity) openRelatedWishlist() }} onKeyDown={(event) => { if (canOpenActivity && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openRelatedWishlist() } }}><strong>{item.title}</strong><p>{item.message}</p>{item.createdAt && <small>{new Date(item.createdAt).toLocaleString()}</small>}{item.kind === 'friend_request' && <div className="activity-actions"><button className="primary" onClick={() => void resolve(item, true)}>Accept</button><button className="secondary danger-text" onClick={() => void resolve(item, false)}>Decline</button></div>}</div><button className="icon-button" aria-label="Clear activity" onClick={() => void remove(item.id)}><X /></button></article>
-  })}<div className="modal-actions"><button className="secondary danger-text" onClick={() => void clearAll()}><Trash2 /> Clear all</button></div></> : <EmptyState icon={<Bell />} title="You’re all caught up" text="Friend requests and shared-list updates will appear here." />}</div></Modal>
+  })}<div className="modal-actions"><button className="secondary danger-text" onClick={() => void clearAll()}><Trash2 /> Clear all</button></div></> : <EmptyState icon={<Bell />} title="You’re all caught up" text="Friend requests and shared-list updates will appear here." />}</div>}</Modal>
 }
 
 function SafetyReportActivityModal({ token, activity, close }: { token: string; activity: ActivityItem; close: () => void }) {

@@ -58,10 +58,14 @@ async function protectedImage(path: string, accessToken?: string, viewerToken?: 
   return response.blob()
 }
 
+export type AnnouncementArchiveItem = AnnouncementCard & { readAt?: string }
+export type AnnouncementArchivePage = { items: AnnouncementArchiveItem[]; nextPage?: number; unreadCount: number }
 export type AnnouncementCard = { id: string; title: string; message: string; createdAt?: string }
 export type AnnouncementInput = { id: string; title: string; message: string; pushBody?: string; userIDs?: string[] }
 export type Announcement = AnnouncementInput & { recipientCount: number; pendingCount: number; audience?: string; createdAt?: string }
 export const api = {
+  announcementArchive: (token: string, page = 1) => request<AnnouncementArchivePage>(`/v1/announcements/history?page=${page}`, { headers: auth(token), cache: 'no-store' }),
+  readAnnouncement: (token: string, id: string) => request<void>(`/v1/announcements/${id}/read`, { method: 'POST', headers: auth(token) }),
   announcementCards: (token: string) => request<AnnouncementCard[]>('/v1/announcements', { headers: auth(token), cache: 'no-store' }),
   dismissAnnouncement: (token: string, id: string) => request<void>(`/v1/announcements/${id}/dismiss`, { method: 'POST', headers: auth(token) }),
   announcementPreference: (token: string) => request<{ enabled: boolean }>('/v1/me/announcement-preference', { headers: auth(token), cache: 'no-store' }),
@@ -130,12 +134,12 @@ export const api = {
   removeReportedContent: (token: string, reportID: string) => request<void>(`/v1/admin/reports/${reportID}/remove-content`, { method: 'POST', headers: auth(token) }),
   dismissReport: (token: string, reportID: string) => request<void>(`/v1/admin/reports/${reportID}/dismiss`, { method: 'POST', headers: auth(token) }),
   suspendReportedUser: (token: string, reportID: string) => request<void>(`/v1/admin/reports/${reportID}/suspend-reported-user`, { method: 'POST', headers: auth(token) }),
-  activity: (token: string) => request<ActivityItem[]>('/v1/activity', { headers: auth(token) }),
+  activity: (token: string) => request<ActivityItem[]>('/v1/activity?category=activity', { headers: auth(token) }),
   unreadActivityCount: (token: string) => request<ActivityUnreadCount>('/v1/activity/unread-count', { headers: auth(token) }),
   readActivity: (token: string, id: string) => request<ActivityItem>(`/v1/activity/${id}/read`, { method: 'POST', headers: auth(token) }),
-  readAllActivity: (token: string) => request<void>('/v1/activity/read-all', { method: 'POST', headers: auth(token) }),
+  readAllActivity: (token: string) => request<void>('/v1/activity/read-all?category=activity', { method: 'POST', headers: auth(token) }),
   deleteActivity: (token: string, id: string) => request<void>(`/v1/activity/${id}`, { method: 'DELETE', headers: auth(token) }),
-  clearActivity: (token: string) => request<void>('/v1/activity', { method: 'DELETE', headers: auth(token) }),
+  clearActivity: (token: string) => request<void>('/v1/activity?category=activity', { method: 'DELETE', headers: auth(token) }),
   occasions: (token: string) => request<RecurringOccasion[]>('/v1/recurring-occasions', { headers: auth(token) }),
   createOccasion: (token: string, value: RecurringOccasion) => request<RecurringOccasion>('/v1/recurring-occasions', { method: 'POST', headers: auth(token), body: JSON.stringify(value) }),
   updateOccasion: (token: string, value: RecurringOccasion) => request<RecurringOccasion>(`/v1/recurring-occasions/${value.id}`, { method: 'PUT', headers: auth(token), body: JSON.stringify(value) }),
