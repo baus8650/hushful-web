@@ -440,7 +440,6 @@ button:disabled { opacity:.5; cursor:not-allowed; transform:none!important; }
 .swap-row small { display: block; opacity: .7; margin-top: 4px; }
 .swap-dialog { max-height: 90dvh; overflow-y: auto; width: min(640px, 95vw); }
 .swap-recipient, .swap-wish { padding: 18px; border: 1px solid var(--border); border-radius: 14px; margin: 10px 0; }
-.swap-guest { max-width: 640px; width: 100%; }
-.swap-key { overflow-wrap: anywhere; }
+.swap-invitation { max-width: 640px; width: 100%; }
 @media (max-width: 540px) { .swap-heading { align-items: flex-start; flex-direction: column; } .swap-row { flex-wrap: wrap; } }
 .swap-detail { border: 0; padding: 0; margin: 0; min-width: 0; }

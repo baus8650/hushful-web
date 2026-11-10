@@ -1,4 +1,4 @@
-import { SwapBanner, SwapGuestPage, SwapCreationDialog } from './HushfulSwap'
+import { SwapBanner, SwapInvitationPage, SwapCreationDialog } from './HushfulSwap'
 import { safetyReportsForActivity } from './safetyReportActivity'
 import { groupAudienceMembers } from './sharingAudience'
 import { trackUsage } from './usageMetrics'
@@ -23,6 +23,9 @@ export default function App() {
   const resetToken = new URLSearchParams(window.location.search).get('resetToken')
   const verificationToken = new URLSearchParams(window.location.search).get('verifyEmailToken')
   const swapInvite = window.location.pathname.match(/^\/swap\/([a-f0-9]{64})$/)?.[1]
+  const savedSwapInvite = localStorage.getItem('hushful.swap.pendingInvite')
+  const pendingSwapInvite = swapInvite || (savedSwapInvite && /^[a-f0-9]{64}$/.test(savedSwapInvite) ? savedSwapInvite : undefined)
+  useEffect(() => { if (swapInvite) localStorage.setItem('hushful.swap.pendingInvite', swapInvite) }, [swapInvite])
   const guestShareToken = window.location.pathname.match(/^\/share\/([^/]+)/)?.[1]
   const [token, setToken] = useState<string | null>(authStorage.get())
   const [user, setUser] = useState<CurrentUser | null>(null)
@@ -56,16 +59,16 @@ export default function App() {
     if (!token || publicPage || guestShareToken || resetToken || verificationToken) trackUsage(publicPage ? window.location.pathname : path)
   }, [guestShareToken, resetToken, verificationToken, token, publicPage, metricsPage])
 
-  if (swapInvite) return <>{themeToggle}<SwapGuestPage invite={swapInvite} token={token || undefined} /></>
   if (publicPage) return <>{themeToggle}<LegalPage page={publicPage} /></>
   if (resetToken) return <>{themeToggle}<ResetPasswordScreen token={resetToken} /></>
   if (verificationToken) return <>{themeToggle}<VerifyEmailScreen token={verificationToken} onAuthenticated={(accessToken) => { window.history.replaceState({}, '', '/'); authStorage.set(accessToken); setLoading(true); setToken(accessToken) }} /></>
   if (guestShareToken) return <>{themeToggle}<GuestShareScreen shareToken={guestShareToken} /></>
   if (loading) return <FullPageLoader />
-  if (!token && window.location.pathname === '/' && !resetToken && !verificationToken) return <>{themeToggle}<LandingPage /></>
-  if (!token || !user) return <>{themeToggle}<AuthScreen analytics={metricsPage} onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} /></>
+  if (!token && !pendingSwapInvite && window.location.pathname === '/' && !resetToken && !verificationToken) return <>{themeToggle}<LandingPage /></>
+  if (!token || !user) return <>{themeToggle}<AuthScreen analytics={metricsPage} swapInvitation={Boolean(pendingSwapInvite)} onAuthenticated={(accessToken) => { authStorage.set(accessToken); setToken(accessToken) }} onError={onError} /></>
   if (metricsPage) return <>{themeToggle}<MetricsPage token={token} logout={logout} /></>
   if (onboardingActive) return <>{themeToggle}<OnboardingFlow token={token} user={user} userChanged={setUser} finish={async () => { try { setUser(await api.updateProfile(token, { onboardingVersion: 1 })); setOnboardingActive(false) } catch (error) { onError(error) } }} logout={logout} /></>
+  if (pendingSwapInvite) return <>{themeToggle}<SwapInvitationPage invite={pendingSwapInvite} token={token} /></>
   return <>
     {themeToggle}
     <Dashboard token={token} user={user} setUser={setUser} logout={logout} onError={onError} notify={notify} />
@@ -267,8 +270,8 @@ function GuestShareScreen({ shareToken }: { shareToken: string }) {
   </main>
 }
 
-function AuthScreen({ onAuthenticated, onError, analytics = false }: { analytics?: boolean; onAuthenticated: (token: string) => void; onError: (e: unknown) => void }) {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(() => new URLSearchParams(window.location.search).get('signup') === '1' ? 'register' : 'login')
+function AuthScreen({ onAuthenticated, onError, analytics = false, swapInvitation = false }: { swapInvitation?: boolean; analytics?: boolean; onAuthenticated: (token: string) => void; onError: (e: unknown) => void }) {
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(() => new URLSearchParams(window.location.search).get('signup') === '1' || swapInvitation ? 'register' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -330,7 +333,7 @@ function AuthScreen({ onAuthenticated, onError, analytics = false }: { analytics
     <section className="auth-card">
       <div className="eyebrow">{pendingVerificationEmail ? 'One more step' : mode === 'forgot' ? 'Account recovery' : register ? 'A fresh start' : 'Welcome back'}</div>
       <h1>{pendingVerificationEmail ? 'Check your email' : mode === 'forgot' ? 'Reset your password' : register ? 'Create your account' : analytics ? 'Sign in to analytics' : 'Sign in to Hushful'}</h1>
-      <p className="muted">{pendingVerificationEmail ? `We sent a secure verification link to ${pendingVerificationEmail}. Open it to finish creating your account.` : mode === 'forgot' ? 'Enter your email and we’ll send you a secure reset link.' : register ? 'Keep every thoughtful idea in one calm place.' : analytics ? 'Use your Hushful administrator account to open the dashboard.' : 'Your wishlists are waiting for you.'}</p>
+      <p className="muted">{pendingVerificationEmail ? `We sent a secure verification link to ${pendingVerificationEmail}. Open it to finish creating your account.` : mode === 'forgot' ? 'Enter your email and we’ll send you a secure reset link.' : swapInvitation ? 'Sign in or create a Hushful account to join the swap. Your invitation will be waiting after account setup.' : register ? 'Keep every thoughtful idea in one calm place.' : analytics ? 'Use your Hushful administrator account to open the dashboard.' : 'Your wishlists are waiting for you.'}</p>
       {pendingVerificationEmail ? <div className="stack-form">
         {message && <p className="auth-message" role="status">{message}</p>}
         <button className="primary wide" onClick={() => void resendVerification()} disabled={busy}>{busy && <LoaderCircle className="spin" />} Send another link <RefreshCw /></button>
