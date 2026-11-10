@@ -58,9 +58,12 @@ async function protectedImage(path: string, accessToken?: string, viewerToken?: 
   return response.blob()
 }
 
+export type AnnouncementCard = { id: string; title: string; message: string; createdAt?: string }
 export type AnnouncementInput = { id: string; title: string; message: string }
 export type Announcement = AnnouncementInput & { recipientCount: number; pendingCount: number; createdAt?: string }
 export const api = {
+  announcementCards: (token: string) => request<AnnouncementCard[]>('/v1/announcements', { headers: auth(token), cache: 'no-store' }),
+  dismissAnnouncement: (token: string, id: string) => request<void>(`/v1/announcements/${id}/dismiss`, { method: 'POST', headers: auth(token) }),
   announcementPreference: (token: string) => request<{ enabled: boolean }>('/v1/me/announcement-preference', { headers: auth(token), cache: 'no-store' }),
   updateAnnouncementPreference: (token: string, enabled: boolean) => request<{ enabled: boolean }>('/v1/me/announcement-preference', { method: 'PUT', headers: auth(token), body: JSON.stringify({ enabled }) }),
   announcements: (token: string) => request<Announcement[]>('/v1/admin/announcements', { headers: auth(token), cache: 'no-store' }),

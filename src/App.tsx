@@ -1,4 +1,4 @@
-import { AdminAnnouncements, AnnouncementPreference } from './Announcements'
+import { AdminAnnouncements, AnnouncementPreference, AnnouncementCards } from './Announcements'
 import { SwapBanner, SwapInvitationPage, SwapCreationDialog } from './HushfulSwap'
 import { safetyReportsForActivity } from './safetyReportActivity'
 import { groupAudienceMembers } from './sharingAudience'
@@ -819,6 +819,7 @@ function Home({ token, user, wishlists, shared, openWishlist, openShared, newWis
   const archived = wishlists.filter((wishlist) => wishlist.isArchived)
   return <div className="page home-page">
     <header className="page-heading"><div><p className="eyebrow">Your quiet corner</p><h1>Good {greeting()}, {firstName(user.displayName)}.</h1><p>Gather every wish. Keep every gift a surprise.</p></div><button className="primary" onClick={newWishlist}><Plus /> New wishlist</button></header>
+    <AnnouncementCards token={token} />
     <SwapBanner token={token} wishlists={wishlists} renderWishlist={(wishlist, onChanged) => <SwapWishlistEditor token={token} wishlist={{ ...wishlist, proAccess: user.isPro === true }} onChanged={onChanged} />} />
     {wishlists.length === 0 && shared.length === 0 ? <EmptyState icon={<Gift />} title="A little space for things you love" text="Create your first wishlist, then share it privately with friends and family." action={<button className="primary" onClick={newWishlist}><Plus /> Create a wishlist</button>} /> : <>
       <section><SectionTitle title="My wishlists" subtitle={`${owned.length} ${owned.length === 1 ? 'collection' : 'collections'}`} action={<button className="text-button" onClick={newWishlist}>Add new <Plus /></button>} />
