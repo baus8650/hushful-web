@@ -59,7 +59,7 @@ async function protectedImage(path: string, accessToken?: string, viewerToken?: 
 }
 
 export type AnnouncementCard = { id: string; title: string; message: string; createdAt?: string }
-export type AnnouncementInput = { id: string; title: string; message: string; userIDs?: string[] }
+export type AnnouncementInput = { id: string; title: string; message: string; pushBody?: string; userIDs?: string[] }
 export type Announcement = AnnouncementInput & { recipientCount: number; pendingCount: number; audience?: string; createdAt?: string }
 export const api = {
   announcementCards: (token: string) => request<AnnouncementCard[]>('/v1/announcements', { headers: auth(token), cache: 'no-store' }),

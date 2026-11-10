@@ -34,6 +34,7 @@ export function AdminAnnouncements({ token }: Props) {
   const [query, setQuery] = useState('')
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
+  const [pushBody, setPushBody] = useState('')
   const [id, setId] = useState(() => crypto.randomUUID())
   const [attempted, setAttempted] = useState<AnnouncementInput | null>(null)
   const [history, setHistory] = useState<Announcement[]>([])
@@ -41,10 +42,10 @@ export function AdminAnnouncements({ token }: Props) {
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
   const [error, setError] = useState('')
-  const input = attempted ?? { id, title: title.trim(), message: message.trim(), ...(selectedOnly ? { userIDs: selected.map(account => account.id) } : {}) }
-  const valid = input.title.length > 0 && input.title.length <= 80 && input.message.length > 0 && input.message.length <= 500 && (input.userIDs === undefined || input.userIDs.length > 0)
+  const input = attempted ?? { id, title: title.trim(), message: message.trim(), pushBody: pushBody.trim(), ...(selectedOnly ? { userIDs: selected.map(account => account.id) } : {}) }
+  const valid = input.title.length > 0 && input.title.length <= 80 && input.message.length > 0 && input.message.length <= 10000 && (input.pushBody ?? '').length > 0 && (input.pushBody ?? '').length <= 500 && (input.userIDs === undefined || input.userIDs.length > 0)
   const fail = (e: unknown) => setError(e instanceof Error ? e.message : 'Request failed.')
-  function reset() { setAttempted(null); setTitle(''); setMessage(''); setId(crypto.randomUUID()) }
+  function reset() { setAttempted(null); setTitle(''); setMessage(''); setPushBody(''); setId(crypto.randomUUID()) }
   async function load() {
     const entries = await api.announcements(token)
     setHistory(entries)
@@ -89,21 +90,23 @@ export function AdminAnnouncements({ token }: Props) {
   }
   return <section className="feedback-admin"><div><strong>Announcements</strong><small>Talk to your users through dismissible My Lists announcements, Activity, and push notifications.</small></div>
     <label>Title<input value={title} maxLength={80} disabled={busy || attempted !== null} onChange={e => setTitle(e.target.value)} /></label>
-    <label>Message<textarea value={message} rows={4} maxLength={500} disabled={busy || attempted !== null} onChange={e => setMessage(e.target.value)} /></label>
-    <small>{title.length}/80 title · {message.length}/500 message</small>
+    <label>Push notification body<textarea value={pushBody} rows={2} maxLength={500} disabled={busy || attempted !== null} onChange={e => setPushBody(e.target.value)} /></label>
+    <label>Announcement text<textarea value={message} rows={10} maxLength={10000} disabled={busy || attempted !== null} onChange={e => setMessage(e.target.value)} /></label>
+    <small>{title.length}/80 title · {pushBody.length}/500 push · {message.length}/10,000 announcement</small>
     <label>Send to<select value={selectedOnly ? 'selected' : 'everyone'} disabled={busy || attempted !== null} onChange={e => setSelectedOnly(e.target.value === 'selected')}><option value="everyone">Everyone</option><option value="selected">Selected accounts</option></select></label>
     {selectedOnly && <fieldset disabled={busy || attempted !== null}><legend>Choose accounts ({selected.length} selected)</legend><label>Search accounts<input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Name, email, or username" /></label>
       {selected.map(account => <label className="checkbox" key={account.id}><input type="checkbox" checked onChange={() => setSelected(items => items.filter(item => item.id !== account.id))} />{account.displayName || account.email} · {account.email}</label>)}
       <div style={{ maxHeight: 260, overflowY: 'auto' }}>{accounts.filter(account => !selected.some(item => item.id === account.id)).map(account => <label className="checkbox" key={account.id}><input type="checkbox" checked={false} disabled={account.emailVerified === false || selected.length >= 1000} onChange={() => setSelected(items => [...items, account])} />{account.displayName || account.email} · {account.email}{account.emailVerified === false ? ' (unverified)' : ''}</label>)}</div>
     </fieldset>}
-    {valid && <article aria-label="Notification preview"><small>Hushful · Notification preview</small><strong>{input.title}</strong><p>{input.message}</p></article>}
+    {valid && <article aria-label="Notification preview"><small>Hushful · Notification preview</small><strong>{input.title}</strong><p>{input.pushBody}</p></article>}
+    {valid && <article aria-label="Announcement preview"><small>My Lists & Activity preview</small><strong>{input.title}</strong><p style={{ whiteSpace: 'pre-wrap' }}>{input.message}</p></article>}
     {audience && <p className="hint">{audience.users} accounts · {audience.pushUsers} eligible for push. Counts may change before delivery.</p>}
     <div className="modal-actions"><button type="button" className="secondary" disabled={!valid || busy} onClick={() => void send(true)}>Send test to my devices</button><button type="button" className="primary" disabled={!valid || busy || !audience} onClick={() => void send(false)}>{busy ? 'Working…' : attempted ? 'Retry this announcement' : 'Send announcement'}</button></div>
     {attempted && <p className="hint">Send result uncertain. Retry uses the same ID to prevent duplicates, or refresh history to check.</p>}
     {status && <p role="status">{status}</p>}{error && <p className="form-error" role="alert">{error}</p>}
     <div className="modal-actions spread"><strong>Send history</strong><button type="button" className="text-button" disabled={busy} onClick={() => void load().catch(fail)}>Refresh history</button></div>
     <small>Processed counts indicate attempts, not confirmed push receipt.</small>
-    <div className="feedback-responses">{history.map(item => <article key={item.id}><strong>{item.title}</strong><p>{item.message}</p><small>{item.audience === 'selected' ? 'Selected accounts' : 'Everyone'} · {item.recipientCount} recipients · {item.pendingCount} pending{item.createdAt ? ` · ${new Date(item.createdAt).toLocaleString()}` : ''}</small></article>)}</div>
+    <div className="feedback-responses">{history.map(item => <article key={item.id}><strong>{item.title}</strong><small>Push: {item.pushBody ?? item.message}</small><p style={{ whiteSpace: 'pre-wrap' }}>{item.message}</p><small>{item.audience === 'selected' ? 'Selected accounts' : 'Everyone'} · {item.recipientCount} recipients · {item.pendingCount} pending{item.createdAt ? ` · ${new Date(item.createdAt).toLocaleString()}` : ''}</small></article>)}</div>
   </section>
 }
 
